@@ -7,11 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "deploy": "npx wrangler pages deploy out --project-name droitfpra"
+    "deploy": "npx wrangler pages deploy out --project-name droitfpra",
+    "deploy:worker": "npx wrangler publish",
+    "deploy:full": "npm run build && npm run deploy && npm run deploy:worker",
+    "init:kv": "npx wrangler kv:namespace create DROIT_KV"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.2",
+    "@types/js-cookie": "^3.0.6",
     "framer-motion": "^12.11.0",
+    "js-cookie": "^3.0.5",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-countup": "^6.5.3",

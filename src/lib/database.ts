@@ -1,5 +1,8 @@
-// This is a simple client-side data handling utility
-// In a production environment, you'd use a real database with server-side API endpoints
+// This file provides data handling for both client-side development and production
+// In development, it uses localStorage directly
+// In production, it communicates with the Cloudflare Worker via the API client
+
+import { isProduction, getData, setData, deleteData, initializeDatabaseViaApi } from './api';
 
 // Type for translated text
 export interface TranslatedText {
@@ -120,8 +123,14 @@ export interface MediaItem {
   uploadDate: string;
 }
 
-// Generic get, set, and delete functions for localStorage
-export const getItem = <T>(key: string): T | null => {
+// Generic get, set, and delete functions that work in both environments
+export const getItem = async <T>(key: string): Promise<T | null> => {
+  // If in production, use the API
+  if (isProduction()) {
+    return await getData<T>(key);
+  }
+  
+  // In development, use localStorage
   if (typeof window === 'undefined') return null;
   
   try {
@@ -133,7 +142,13 @@ export const getItem = <T>(key: string): T | null => {
   }
 };
 
-export const setItem = <T>(key: string, value: T): boolean => {
+export const setItem = async <T>(key: string, value: T): Promise<boolean> => {
+  // If in production, use the API
+  if (isProduction()) {
+    return await setData<T>(key, value);
+  }
+  
+  // In development, use localStorage
   if (typeof window === 'undefined') return false;
   
   try {
@@ -154,7 +169,13 @@ export const setItem = <T>(key: string, value: T): boolean => {
   }
 };
 
-export const removeItem = (key: string): boolean => {
+export const removeItem = async (key: string): Promise<boolean> => {
+  // If in production, use the API
+  if (isProduction()) {
+    return await deleteData(key);
+  }
+  
+  // In development, use localStorage
   if (typeof window === 'undefined') return false;
   
   try {
@@ -166,75 +187,75 @@ export const removeItem = (key: string): boolean => {
   }
 };
 
-// Data specific functions
-export const getNews = (): NewsItem[] => {
-  return getItem<NewsItem[]>('news') || [];
+// Data specific functions - modify these to work with promises
+export const getNews = async (): Promise<NewsItem[]> => {
+  return await getItem<NewsItem[]>('news') || [];
 };
 
-export const setNews = (news: NewsItem[]): boolean => {
-  return setItem('news', news);
+export const setNews = async (news: NewsItem[]): Promise<boolean> => {
+  return await setItem('news', news);
 };
 
-export const getNewsItem = (id: number): NewsItem | null => {
-  const news = getNews();
+export const getNewsItem = async (id: number): Promise<NewsItem | null> => {
+  const news = await getNews();
   return news.find(item => item.id === id) || null;
 };
 
-export const updateNewsItem = (item: NewsItem): boolean => {
-  const news = getNews();
+export const updateNewsItem = async (item: NewsItem): Promise<boolean> => {
+  const news = await getNews();
   const index = news.findIndex(i => i.id === item.id);
   
   if (index !== -1) {
     news[index] = item;
-    return setNews(news);
+    return await setNews(news);
   }
   return false;
 };
 
-export const deleteNewsItem = (id: number): boolean => {
-  const news = getNews();
+export const deleteNewsItem = async (id: number): Promise<boolean> => {
+  const news = await getNews();
   const filtered = news.filter(item => item.id !== id);
-  return setNews(filtered);
+  return await setNews(filtered);
 };
 
-export const getResources = (): Resource[] => {
-  return getItem<Resource[]>('resources') || [];
+export const getResources = async (): Promise<Resource[]> => {
+  return await getItem<Resource[]>('resources') || [];
 };
 
-export const setResources = (resources: Resource[]): boolean => {
-  return setItem('resources', resources);
+export const setResources = async (resources: Resource[]): Promise<boolean> => {
+  return await setItem('resources', resources);
 };
 
-export const getResource = (id: number): Resource | null => {
-  const resources = getResources();
+export const getResource = async (id: number): Promise<Resource | null> => {
+  const resources = await getResources();
   return resources.find(item => item.id === id) || null;
 };
 
-export const updateResource = (item: Resource): boolean => {
-  const resources = getResources();
+export const updateResource = async (item: Resource): Promise<boolean> => {
+  const resources = await getResources();
   const index = resources.findIndex(i => i.id === item.id);
   
   if (index !== -1) {
     resources[index] = item;
-    return setResources(resources);
+    return await setResources(resources);
   }
   return false;
 };
 
-export const deleteResource = (id: number): boolean => {
-  const resources = getResources();
+export const deleteResource = async (id: number): Promise<boolean> => {
+  const resources = await getResources();
   const filtered = resources.filter(item => item.id !== id);
-  return setResources(filtered);
+  return await setResources(filtered);
 };
 
-export const getPageContent = (pageId: string): PageContent | null => {
-  return getItem<PageContent>(`page_${pageId}`) || null;
+export const getPageContent = async (pageId: string): Promise<PageContent | null> => {
+  return await getItem<PageContent>(`page_${pageId}`) || null;
 };
 
 // Custom event name for content updates
 const CONTENT_UPDATED_EVENT = 'content_updated';
 
-export const setPageContent = (content: PageContent): boolean => {
+export const setPageContent = async (content: PageContent): Promise<boolean> => {
   if (!content || !content.id) {
     console.error('Invalid page content: Missing content object or content.id');
     return false;
@@ -352,7 +373,7 @@ export const setPageContent = (content: PageContent): boolean => {
   }
 };
 
-export const getAllPageIds = (): string[] => {
+export const getAllPageIds = async (): Promise<string[]> => {
   if (typeof window === 'undefined') return [];
   
   try {
@@ -371,91 +392,100 @@ export const getAllPageIds = (): string[] => {
 };
 
 // Helper function to get all pages
-export const getAllPages = (): PageContent[] => {
-  const pageIds = getAllPageIds();
-  return pageIds.map(id => getPageContent(id)).filter(page => page !== null) as PageContent[];
+export const getAllPages = async (): Promise<PageContent[]> => {
+  const pageIds = await getAllPageIds();
+  const pages: PageContent[] = [];
+  
+  for (const id of pageIds) {
+    const page = await getPageContent(id);
+    if (page !== null) {
+      pages.push(page);
+    }
+  }
+  
+  return pages;
 };
 
 // Function to get all global content
-export const getGlobalContent = (): GlobalContent[] => {
-  return getItem<GlobalContent[]>('global_content') || [];
+export const getGlobalContent = async (): Promise<GlobalContent[]> => {
+  return await getItem<GlobalContent[]>('global_content') || [];
 };
 
 // Function to set all global content
-export const setGlobalContent = (content: GlobalContent[]): boolean => {
-  return setItem('global_content', content);
+export const setGlobalContent = async (content: GlobalContent[]): Promise<boolean> => {
+  return await setItem('global_content', content);
 };
 
 // Function to get a specific global content item by category and key
-export const getGlobalContentItem = (category: string, key: string): GlobalContent | null => {
-  const globalContent = getGlobalContent();
+export const getGlobalContentItem = async (category: string, key: string): Promise<GlobalContent | null> => {
+  const globalContent = await getGlobalContent();
   return globalContent.find(item => item.category === category && item.key === key) || null;
 };
 
 // Function to update a specific global content item
-export const updateGlobalContentItem = (item: GlobalContent): boolean => {
-  const globalContent = getGlobalContent();
+export const updateGlobalContentItem = async (item: GlobalContent): Promise<boolean> => {
+  const globalContent = await getGlobalContent();
   const index = globalContent.findIndex(i => i.id === item.id);
   
   if (index !== -1) {
     globalContent[index] = item;
-    return setGlobalContent(globalContent);
+    return await setGlobalContent(globalContent);
   }
   
   // Item doesn't exist, add it
   globalContent.push(item);
-  return setGlobalContent(globalContent);
+  return await setGlobalContent(globalContent);
 };
 
 // Function to get all text strings for a specific category
-export const getCategoryContent = (category: string): GlobalContent[] => {
-  const globalContent = getGlobalContent();
+export const getCategoryContent = async (category: string): Promise<GlobalContent[]> => {
+  const globalContent = await getGlobalContent();
   return globalContent.filter(item => item.category === category);
 };
 
 // Function to get all media items
-export const getMediaLibrary = (): MediaItem[] => {
-  return getItem<MediaItem[]>('media_library') || [];
+export const getMediaLibrary = async (): Promise<MediaItem[]> => {
+  return await getItem<MediaItem[]>('media_library') || [];
 };
 
 // Function to set all media items
-export const setMediaLibrary = (media: MediaItem[]): boolean => {
-  return setItem('media_library', media);
+export const setMediaLibrary = async (media: MediaItem[]): Promise<boolean> => {
+  return await setItem('media_library', media);
 };
 
 // Function to get a specific media item by id
-export const getMediaItem = (id: string): MediaItem | null => {
-  const mediaLibrary = getMediaLibrary();
+export const getMediaItem = async (id: string): Promise<MediaItem | null> => {
+  const mediaLibrary = await getMediaLibrary();
   return mediaLibrary.find(item => item.id === id) || null;
 };
 
 // Function to add or update a media item
-export const updateMediaItem = (item: MediaItem): boolean => {
-  const mediaLibrary = getMediaLibrary();
+export const updateMediaItem = async (item: MediaItem): Promise<boolean> => {
+  const mediaLibrary = await getMediaLibrary();
   const index = mediaLibrary.findIndex(i => i.id === item.id);
   
   if (index !== -1) {
     mediaLibrary[index] = item;
-    return setMediaLibrary(mediaLibrary);
+    return await setMediaLibrary(mediaLibrary);
   }
   
   // Item doesn't exist, add it
   mediaLibrary.push(item);
-  return setMediaLibrary(mediaLibrary);
+  return await setMediaLibrary(mediaLibrary);
 };
 
 // Function to delete a media item by id
-export const deleteMediaItem = (id: string): boolean => {
-  const mediaLibrary = getMediaLibrary();
+export const deleteMediaItem = async (id: string): Promise<boolean> => {
+  const mediaLibrary = await getMediaLibrary();
   const filtered = mediaLibrary.filter(item => item.id !== id);
-  return setMediaLibrary(filtered);
+  return await setMediaLibrary(filtered);
 };
 
 // Function to sync all website content
-export const syncContentToEditor = (): boolean => {
+export const syncContentToEditor = async (): Promise<boolean> => {
   try {
     // Read all rendered pages
-    const pages = getAllPageIds();
+    const pages = await getAllPageIds();
     
     // For each page, create a snapshot for the editor
     pages.forEach(pageId => {
@@ -466,25 +496,25 @@ export const syncContentToEditor = (): boolean => {
     });
     
     // Sync news content
-    const news = getNews();
+    const news = await getNews();
     setItem('editor_news', news);
     
     // Sync resources content
-    const resources = getResources();
+    const resources = await getResources();
     setItem('editor_resources', resources);
     
     // Sync global content
-    const globalContent = getGlobalContent();
+    const globalContent = await getGlobalContent();
     setItem('editor_global_content', globalContent);
     
     // Sync website structure
-    const websiteStructure = getItem<WebsiteStructure>('websiteStructure');
+    const websiteStructure = await getItem<WebsiteStructure>('websiteStructure');
     if (websiteStructure) {
       setItem('editor_websiteStructure', websiteStructure);
     }
     
     // Sync media library
-    const mediaLibrary = getMediaLibrary();
+    const mediaLibrary = await getMediaLibrary();
     setItem('editor_media_library', mediaLibrary);
     
     return true;
@@ -495,9 +525,9 @@ export const syncContentToEditor = (): boolean => {
 };
 
 // Function to apply editor changes to the actual website content
-export const applyEditorChanges = (pageId: string): boolean => {
+export const applyEditorChanges = async (pageId: string): Promise<boolean> => {
   try {
-    const editorContent = getItem<PageContent>(`editor_${pageId}`);
+    const editorContent = await getItem<PageContent>(`editor_${pageId}`);
     if (editorContent) {
       // Save directly to the main storage, not just editor version
       setItem(`page_${pageId}`, editorContent);
@@ -511,10 +541,10 @@ export const applyEditorChanges = (pageId: string): boolean => {
 };
 
 // Function to update the homepage with all necessary sections
-export const updateHomePageWithAllSections = (): boolean => {
+export const updateHomePageWithAllSections = async (): Promise<boolean> => {
   try {
     // Check if the home page exists
-    const existingHome = getPageContent('home');
+    const existingHome = await getPageContent('home');
     
     if (existingHome) {
       // Define all required section IDs for the home page
@@ -565,10 +595,10 @@ export const updateHomePageWithAllSections = (): boolean => {
 };
 
 // Update the About page with all sections
-export const updateAboutPageWithAllSections = (): boolean => {
+export const updateAboutPageWithAllSections = async (): Promise<boolean> => {
   try {
     // Get current about page content
-    let content = getPageContent('about');
+    let content = await getPageContent('about');
     
     // If no content exists, create a base content
     if (!content) {
@@ -679,10 +709,10 @@ export const updateAboutPageWithAllSections = (): boolean => {
 };
 
 // Update the Programs page with all sections
-export const updateProgramsPageWithAllSections = (): boolean => {
+export const updateProgramsPageWithAllSections = async (): Promise<boolean> => {
   try {
     // Get current programs page content
-    let content = getPageContent('programs');
+    let content = await getPageContent('programs');
     
     // If no content exists, create a base content
     if (!content) {
@@ -1227,106 +1257,38 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
   };
 };
 
-// Enhanced function to get the exact website content for editing
-export const getExactPageContent = (pageId: string): PageContent => {
-  // First try to get any editor-specific content
-  let content = getItem<PageContent>(`editor_${pageId}`);
-  
-  // If no editor content exists, get the live content
-  if (!content) {
-    content = getPageContent(pageId);
-    
-    // If we found live content, create an editor copy
-    if (content) {
-      // For home page, ensure all sections are available
-      if (pageId === 'home') {
-        updateHomePageWithAllSections();
-        // Refresh content after update
-        content = getPageContent(pageId);
-      }
-      // For about page, ensure all sections are available
-      else if (pageId === 'about') {
-        updateAboutPageWithAllSections();
-        // Refresh content after update
-        content = getPageContent(pageId);
-      }
-      
-      if (content) {
-        setItem(`editor_${pageId}`, content);
-      }
-    } else {
-      // If no content exists at all, create default content
-      content = createDefaultPageContent(pageId);
-      
-      if (content) {
-        // Save the default content to both editor and live versions
-        setItem(`editor_${pageId}`, content);
-        setItem(`page_${pageId}`, content);
-        
-        // For special pages that need all sections
-        if (pageId === 'home') {
-          updateHomePageWithAllSections();
-          content = getPageContent(pageId);
-        }
-        else if (pageId === 'about') {
-          updateAboutPageWithAllSections();
-          content = getPageContent(pageId);
-        }
-      }
-    }
+// Function to get exact page content for editing
+export const getExactPageContent = async (pageId: string): Promise<PageContent> => {
+  // First try to get from the editor version, which is used for editing
+  const editorContent = await getItem<PageContent>(`editor_${pageId}`);
+  if (editorContent) {
+    return editorContent;
   }
   
-  // Ensure we always return a valid content object to prevent errors
+  // If no editor version exists, get the original page content
+  let content = await getPageContent(pageId);
+  
+  // If page doesn't exist yet, create default content
   if (!content) {
-    console.warn(`No content found for ${pageId}, creating default empty content`);
+    // Create default content based on page ID
+    const defaultContent = createDefaultPageContent(pageId);
+    if (defaultContent) {
+      // Save the default content
+      await setPageContent(defaultContent);
+      return defaultContent;
+    }
     
-    const defaultTitle = { 
-      fr: pageId.charAt(0).toUpperCase() + pageId.slice(1), 
-      ar: pageId 
-    };
-    
-    content = {
+    // Fallback: Return a minimal valid page content object
+    return {
       id: pageId,
-      title: defaultTitle,
+      title: { fr: 'Nouvelle Page', ar: 'صفحة جديدة' },
       sections: [
         {
-          id: 'intro',
-          title: defaultTitle,
-          content: { 
-            fr: `Contenu de la page ${defaultTitle.fr}`, 
-            ar: `محتوى صفحة ${defaultTitle.ar}` 
-          }
+          id: 'section1',
+          title: { fr: 'Section 1', ar: 'القسم 1' },
+          content: { fr: 'Contenu de la section', ar: 'محتوى القسم' }
         }
       ]
-    };
-    
-    // Save this default content to avoid future issues
-    setItem(`editor_${pageId}`, content);
-    setItem(`page_${pageId}`, content);
-  }
-  
-  // Ensure sections is always an array and that all sections have titles
-  if (!content.sections) {
-    content.sections = [];
-  }
-  
-  // Make sure all sections have their title property defined
-  content.sections = content.sections.map(section => {
-    // If section is missing title property, add a default one
-    if (!section.title) {
-      section.title = { 
-        fr: section.id.charAt(0).toUpperCase() + section.id.slice(1).replace(/_/g, ' '), 
-        ar: section.id 
-      };
-    }
-    return section;
-  });
-  
-  // Make sure the content has a valid title
-  if (!content.title || !content.title.fr || !content.title.ar) {
-    content.title = { 
-      fr: pageId.charAt(0).toUpperCase() + pageId.slice(1), 
-      ar: pageId 
     };
   }
   
@@ -1334,7 +1296,7 @@ export const getExactPageContent = (pageId: string): PageContent => {
 };
 
 // Enhanced initialize database function to capture the exact website structure
-export const initializeDatabase = () => {
+export const initializeDatabase = async () => {
   // Check if database was already initialized
   if (localStorage.getItem('dbInitialized')) {
     return;
@@ -2094,7 +2056,7 @@ export const initializeDatabase = () => {
         },
         content: {
           fr: 'Notre rapport annuel présente un aperçu complet de l\'état des droits humains en Algérie.\n\nRapport annuel 2023\nMai 2023 | 120 pages\nCe rapport présente un aperçu complet de l\'état des droits humains en Algérie en 2023. Il aborde les avancées et défis dans différents domaines, notamment les libertés civiles, les droits économiques et sociaux, et l\'accès à la justice.',
-          ar: 'يقدم تقريرنا السنوي نظرة شاملة عن حالة حقوق الإنسان في الجزائر.\n\nالتقرير السنوي 2023\nمايو 2023 | 120 صفحة\nيقدم هذا التقرير نظرة شاملة عن حالة حقوق الإنسان في الجزائر في عام 2023. ويتناول التقدم والتحديات في مختلف المجالات، بما في ذلك الحريات المدنية والحقوق الاقتصادية والاجتماعية والوصول إلى العدالة.'
+            ar: 'يقدم تقريرنا السنوي نظرة شاملة عن حالة حقوق الإنسان في الجزائر.\n\nالتقرير السنوي 2023\nمايو 2023 | 120 صفحة\nيقدم هذا التقرير نظرة شاملة عن حالة حقوق الإنسان في الجزائر في عام 2023. ويتناول التقدم والتحديات في مختلف المجالات، بما في ذلك الحريات المدنية والحقوق الاقتصادية والاجتماعية والوصول إلى العدالة.'
           }
         }
       ]
