@@ -16,14 +16,20 @@ export default function AdminResourcesPage() {
   const [filteredResources, setFilteredResources] = useState<Resource[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     setIsClient(true);
     
-    // Load resources from database (localStorage in this demo)
-    const loadedResources = getResources();
-    setResources(loadedResources);
-    setFilteredResources(loadedResources);
+    const loadResources = async () => {
+      // Load resources from database (localStorage in this demo)
+      const loadedResources = await getResources();
+      setResources(loadedResources);
+      setFilteredResources(loadedResources);
+      setIsLoading(false);
+    };
+    
+    loadResources();
   }, []);
   
   useEffect(() => {

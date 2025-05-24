@@ -120,10 +120,14 @@ export default function Hero() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
 
-  const loadContent = () => {
-    const content = getPageContent('home');
-    if (content) {
-      setPageContent(content);
+  const loadContent = async () => {
+    try {
+      const content = await getPageContent('home');
+      if (content) {
+        setPageContent(content);
+      }
+    } catch (error) {
+      console.error('Error loading hero content:', error);
     }
   };
 
@@ -135,21 +139,21 @@ export default function Hero() {
     window.addEventListener('mousemove', handleMouseMove);
     loadContent(); // Initial load
 
-    // Create a custom event listener for content updates
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_home' || event.key === 'editor_home') {
-        loadContent(); // Reload content if home page data changes
+      if (event.key === 'page_home') {
+        loadContent();
       }
     };
-
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
     
-    // Listen for our custom content updated event
     const handleContentUpdated = () => {
       loadContent();
     };
     
+    // Listen for storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {

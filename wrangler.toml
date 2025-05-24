@@ -1,18 +1,20 @@
 name = "droitfpra"
 compatibility_date = "2023-05-14"
 main = "src/worker/index.ts"
+workers_dev = true
 
 # KV Namespace binding
 kv_namespaces = [
-  { binding = "DROIT_KV", id = "your-kv-namespace-id-will-be-here" }
+  { binding = "DROIT_KV", id = "3fc5c7dfb94e4fdbab7f41da39647e69" }
 ]
 
 # Specify the correct directory for the static export
 [site]
 bucket = "./out"
 
-[build]
-command = "npm run build"
+# Remove the build command to skip the build step for worker deployment
+# [build]
+# command = "npm run build"
 
 # Include static assets like headers and redirects
 [site.static]
@@ -21,25 +23,10 @@ include = ["_headers", "_redirects"]
 # Configure the Pages output directory
 pages_build_output_dir = "out"
 
-# Routes configuration
-[[routes]]
-pattern = "/api/*"
-script = "src/worker/index.ts"
-
 [env.production]
 name = "droit-site"
-route = ""
-workers_dev = true
 compatibility_date = "2023-05-14"
 
 [env.production.build]
 command = "npm run build"
-output_directory = "out"
-
-[[env.production.routes]]
-pattern = "/api/*"
-script = "src/worker/index.ts"
-
-[[env.production.routes]]
-pattern = "/*"
-script = "" 
+output_directory = "out" 

@@ -145,43 +145,48 @@ export default function NewsSection() {
     : 'Découvrez les dernières informations sur nos activités, projets et engagements.');
   const [updateLabel, setUpdateLabel] = useState(language === 'ar' ? 'آخر التحديثات' : 'Dernières mises à jour');
 
-  const loadContent = () => {
-    const content = getPageContent('home');
-    if (content) {
-      console.log('NewsSection - Loading content, available sections:', content.sections.map(s => s.id));
-      
-      // Find the actualites section by checking multiple possible IDs
-      const actualitesSection = content.sections.find(section => 
-        section.id === '10' || 
-        section.id === 'section_10' || 
-        section.id === 'actualites' ||
-        (section.title && (
-          section.title.fr?.toLowerCase().includes('actualités') || 
-          section.title.ar?.includes('أخبار')
-        ))
-      );
-      
-      if (actualitesSection) {
-        console.log('NewsSection - Found section:', actualitesSection.title, actualitesSection.content);
+  const loadContent = async () => {
+    try {
+      // Get the page content for the news section configuration
+      const content = await getPageContent('home');
+      if (content) {
+        console.log('NewsSection - Loading content, available sections:', content.sections.map(s => s.id));
         
-        // Set the section title and description
-        setSectionTitle(actualitesSection.title?.[language] || (language === 'ar' ? 'أخبار حديثة' : 'Actualités Récentes'));
-        setSectionDesc(actualitesSection.content?.[language] || 
-          (language === 'ar' 
-            ? 'اكتشف أحدث المعلومات حول أنشطتنا ومشاريعنا والتزاماتنا.'
-            : 'Découvrez les dernières informations sur nos activités, projets et engagements.')
+        // Find the actualites section by checking multiple possible IDs
+        const actualitesSection = content.sections.find(section => 
+          section.id === '10' || 
+          section.id === 'section_10' || 
+          section.id === 'actualites' ||
+          (section.title && (
+            section.title.fr?.toLowerCase().includes('actualités') || 
+            section.title.ar?.includes('أخبار')
+          ))
         );
         
-        // Check if there's metadata for the updates label
-        if (actualitesSection.metadata?.updateLabel) {
-          setUpdateLabel(actualitesSection.metadata.updateLabel[language] || 
-            (language === 'ar' ? 'آخر التحديثات' : 'Dernières mises à jour'));
+        if (actualitesSection) {
+          console.log('NewsSection - Found section:', actualitesSection.title, actualitesSection.content);
+          
+          // Set the section title and description
+          setSectionTitle(actualitesSection.title?.[language] || (language === 'ar' ? 'أخبار حديثة' : 'Actualités Récentes'));
+          setSectionDesc(actualitesSection.content?.[language] || 
+            (language === 'ar' 
+              ? 'اكتشف أحدث المعلومات حول أنشطتنا ومشاريعنا والتزاماتنا.'
+              : 'Découvrez les dernières informations sur nos activités, projets et engagements.')
+          );
+          
+          // Check if there's metadata for the updates label
+          if (actualitesSection.metadata?.updateLabel) {
+            setUpdateLabel(actualitesSection.metadata.updateLabel[language] || 
+              (language === 'ar' ? 'آخر التحديثات' : 'Dernières mises à jour'));
+          }
+        } else {
+          console.log('NewsSection - Section not found!');
         }
       } else {
-        console.log('NewsSection - Section not found!');
+        console.log('NewsSection - No content found for home page');
       }
-    } else {
-      console.log('NewsSection - No content found for home page');
+    } catch (error) {
+      console.error('NewsSection - Error loading content:', error);
     }
   };
 

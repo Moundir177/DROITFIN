@@ -67,11 +67,13 @@ export default function ResourcesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
+  const [isClient, setIsClient] = useState(false);
   
   // Function to load page content from localStorage
-  const loadContent = () => {
+  const loadContent = async () => {
     try {
-      const content = getPageContent('resources');
+      const content = await getPageContent('resources');
+      
       if (content) {
         console.log('Resources page - Content loaded with sections:', 
           content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
@@ -85,28 +87,28 @@ export default function ResourcesPage() {
   };
   
   useEffect(() => {
-    // Load content on initial render
+    setIsClient(true);
+    
+    // Initial content load
     loadContent();
     
-    // Set up event listeners for content updates
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_resources' || event.key === 'editor_resources') {
-        console.log('Resources page - Storage change detected for key:', event.key);
-        // Force complete refresh from localStorage
+      if (event.key === 'page_resources') {
+        console.log('Resources page - Storage change detected');
         loadContent();
       }
     };
     
     const handleContentUpdated = () => {
       console.log('Resources page - Content updated event received');
-      // Force complete refresh
       loadContent();
     };
     
     // Listen for direct localStorage changes
     window.addEventListener('storage', handleStorageChange);
     
-    // Listen for custom content updated event
+    // Listen for our custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {

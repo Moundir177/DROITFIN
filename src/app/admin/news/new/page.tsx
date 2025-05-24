@@ -95,16 +95,16 @@ export default function NewNewsPage() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
     
     setIsSaving(true);
     
-    // In a real application, this would be an API call
-    setTimeout(() => {
-      const existingNews = getNews();
+    try {
+      // Get existing news
+      const existingNews = await getNews();
       
       // Generate a new ID and slug
       const newId = existingNews.length > 0 
@@ -122,10 +122,14 @@ export default function NewNewsPage() {
         slug: newSlug
       };
       
-      setNews([...existingNews, newNewsItem]);
-      setIsSaving(false);
+      // Save the new news item
+      await setNews([...existingNews, newNewsItem]);
       router.push('/admin/news');
-    }, 500);
+    } catch (error) {
+      console.error('Error creating news item:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Only render on client side to avoid hydration issues

@@ -54,8 +54,8 @@ export default function Programs() {
     }
   ]);
 
-  const loadContent = () => {
-    const content = getPageContent('home');
+  const loadContent = async () => {
+    const content = await getPageContent('home');
     if (content) {
       console.log('Programs - Loading content, available sections:', content.sections.map(s => s.id));
       
@@ -118,7 +118,11 @@ export default function Programs() {
                   // Map the loaded program items to our format, keeping the icons
                   const updatedProgramData = programItems.map((item, index) => {
                     const originalIcon = programData[index % programData.length]?.icon || 
-                      [<FaGraduationCap />, <FaBalanceScale />, <FaBullhorn />][index % 3];
+                      [
+                        <FaGraduationCap key="graduation" />, 
+                        <FaBalanceScale key="balance" />, 
+                        <FaBullhorn key="bullhorn" />
+                      ][index % 3];
                     
                     return {
                       title: item.title || programData[index % programData.length]?.title || '',
@@ -192,7 +196,11 @@ export default function Programs() {
           if (programItems.length > 0) {
             const updatedProgramData = programItems.map((item, index) => {
               const originalIcon = programData[index % programData.length]?.icon || 
-                [<FaGraduationCap />, <FaBalanceScale />, <FaBullhorn />][index % 3];
+                [
+                  <FaGraduationCap key="graduation" />, 
+                  <FaBalanceScale key="balance" />, 
+                  <FaBullhorn key="bullhorn" />
+                ][index % 3];
               
               return {
                 ...item,

@@ -18,158 +18,80 @@ export default function EditHomePage() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [pageContent, setPageData] = useState<PageContent | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Create a memoized loadPageContent function that can be used in event handlers
-  const loadPageContent = useCallback(() => {
-    // First make sure all sections are available
-    updateHomePageWithAllSections();
-    
-    // In a real application, this would be an API call
-    let content = getExactPageContent('home');
-    
-    if (content) {
-      // Ensure sections are in the correct order
-      const desiredOrder = [
-        'hero',
-        'slogan',
-        'mission',
-        'impact',
-        'objectives',
-        'droits_egaux',
-        'objectifs_details',
-        'mission_details',
-        'programmes',
-        'actualites',
-        'identite_visuelle',
-        'newsletter'
-      ];
-      
-      // Create a new array with sections in the desired order
-      const orderedSections = [];
-      
-      // First add sections in the desired order if they exist
-      for (const sectionId of desiredOrder) {
-        const section = content.sections.find(s => s.id === sectionId);
-        if (section) {
-          orderedSections.push(section);
-        }
-      }
-      
-      // Then add any remaining sections that weren't in the desired order
-      content.sections.forEach(section => {
-        if (!desiredOrder.includes(section.id)) {
-          orderedSections.push(section);
-        }
-      });
-      
-      // Update the content with the ordered sections
-      content.sections = orderedSections;
-      
-      // Save the ordered sections
-      setPageData(content);
-    }
-    
-    if (!content) {
-      // Create default content if none exists
-      content = {
-        id: 'home',
-        title: {
-          fr: 'Accueil',
-          ar: 'الرئيسية'
-        },
-        sections: [
-          {
-            id: 'hero',
-            title: {
-              fr: 'Bannière principale',
-              ar: 'البانر الرئيسي'
-            },
-            content: {
-              fr: 'Fondation pour la Promotion des Droits',
-              ar: 'مؤسسة تعزيز الحقوق'
-            },
-            image: '/images/hero-banner.jpg'
-          },
-          {
-            id: 'slogan',
-            title: {
-              fr: 'Notre slogan',
-              ar: 'شعارنا'
-            },
-            content: {
-              fr: 'Ensemble, pour des droits connus, reconnus et défendus.',
-              ar: 'معاً، من أجل حقوق معروفة ومعترف بها ومحمية.'
-            }
-          },
-          {
-            id: 'mission',
-            title: {
-              fr: 'Notre mission',
-              ar: 'مهمتنا'
-            },
-            content: {
-              fr: 'Notre mission est de promouvoir et défendre les droits par la sensibilisation, la formation, la documentation des violations et le soutien aux acteurs de la société civile.',
-              ar: 'مهمتنا هي تعزيز والدفاع عن الحقوق من خلال التوعية والتدريب وتوثيق الانتهاكات ودعم الفاعلين في المجتمع المدني.'
-            }
-          },
-          {
-            id: 'impact',
-            title: {
-              fr: 'Notre Impact',
-              ar: 'تأثيرنا'
-            },
-            content: {
-              fr: '38+ Formations\n760+ Bénéficiaires\n25+ Partenaires\n\nLes chiffres qui reflètent notre engagement et notre impact dans la promotion et la défense des droits.',
-              ar: '+38 تدريب\n+760 مستفيد\n+25 شريك\n\nالأرقام التي تعكس التزامنا وتأثيرنا في تعزيز والدفاع عن الحقوق.'
-            }
-          },
-          {
-            id: 'objectives',
-            title: {
-              fr: 'Nos objectifs',
-              ar: 'أهدافنا'
-            },
-            content: {
-              fr: 'La Fondation pour la promotion des droits poursuit les objectifs suivants pour concrétiser sa vision d\'une société juste et respectueuse des droits fondamentaux.',
-              ar: 'تسعى مؤسسة تعزيز الحقوق لتحقيق الأهداف التالية لتجسيد رؤيتها لمجتمع عادل يحترم الحقوق الأساسية.'
-            }
-          }
-        ]
-      };
-    }
-    
-    setPageData(content);
-    setIsLoading(false);
-  }, []);
-
+  // Load content on client side only
   useEffect(() => {
     setIsClient(true);
-    
-    // Initial content load
-    loadPageContent();
-    
-    // Add event listeners for content updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_home' || event.key === 'editor_home') {
-        loadPageContent();
+    loadContent();
+  }, []);
+
+  // When the language changes, we should refresh the content too
+  useEffect(() => {
+    if (isClient) {
+      console.log('EditHomePage: Language changed, refreshing content');
+      // This forces a re-render with the new language
+      setForceRefresh(prev => prev + 1);
+    }
+  }, [language, isClient]);
+
+  // Load page content
+  const loadContent = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log('EditHomePage: Loading home page content');
+      
+      // First make sure all sections are added to the home page
+      await updateHomePageWithAllSections();
+      
+      // Then get the complete home page content
+      const content = await getExactPageContent('home');
+      
+      if (content) {
+        // Make sure we have all required sections for the home page
+        const requiredSectionIds = [
+          'hero', 'slogan', 'mission', 'droits_egaux', 'objectives', 
+          'impact', 'actualites', 'objectifs_details', 'mission_details',
+          'programmes', 'identite_visuelle', 'newsletter'
+        ];
+        
+        // Check if any required sections are missing
+        const existingSectionIds = content.sections.map(section => section.id);
+        
+        console.log('EditHomePage: Available sections:', existingSectionIds.join(', '));
+        console.log('EditHomePage: Required sections:', requiredSectionIds.join(', '));
+        
+        const missingSectionIds = requiredSectionIds.filter(id => !existingSectionIds.includes(id));
+        
+        if (missingSectionIds.length > 0) {
+          console.log('EditHomePage: Missing sections:', missingSectionIds.join(', '));
+          // Add missing sections on the fly
+          for (const id of missingSectionIds) {
+            content.sections.push({
+              id: id,
+              title: {
+                fr: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' '),
+                ar: id
+              },
+              content: {
+                fr: `Contenu de la section ${id}`,
+                ar: `محتوى القسم ${id}`
+              }
+            });
+          }
+        }
+        
+        console.log(`EditHomePage: Content loaded with ${content.sections.length} sections`);
+        setPageData(content);
+      } else {
+        console.error('EditHomePage: No content found for home page');
       }
-    };
-    
-    const handleContentUpdated = () => {
-      loadPageContent();
-    };
-    
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for our custom content updated event
-    window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    };
-  }, [loadPageContent]);
+    } catch (error) {
+      console.error('EditHomePage: Error loading content:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleSave = async (content: PageContent): Promise<boolean> => {
     try {
@@ -177,7 +99,7 @@ export default function EditHomePage() {
         content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
       
       // Save the content to localStorage
-      const success = setPageContent(content);
+      const success = await setPageContent(content);
       
       if (success) {
         // Force immediate update of the component state
@@ -219,13 +141,11 @@ export default function EditHomePage() {
         setTimeout(() => {
           router.push('/admin/pages');
         }, 1500);
-      } else {
-        console.error('Failed to save home page content');
       }
       
       return success;
     } catch (error) {
-      console.error('Error saving home page content:', error);
+      console.error('EditHomePage: Error saving content:', error);
       return false;
     }
   };
@@ -236,7 +156,7 @@ export default function EditHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex" key={`home-editor-${forceRefresh}`} suppressHydrationWarning>
       <AdminSidebar />
       
       <main className="flex-1 p-8">

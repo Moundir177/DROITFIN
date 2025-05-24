@@ -22,44 +22,53 @@ export default function MediaLibraryEditor() {
 
   useEffect(() => {
     setIsClient(true);
-    loadMediaLibrary();
+    const initializeMedia = async () => {
+      await loadMediaLibrary();
+    };
+    initializeMedia();
   }, []);
 
   useEffect(() => {
     filterMedia();
   }, [selectedTag, mediaLibrary, searchTerm]);
 
-  const loadMediaLibrary = () => {
-    // First try to get editor content
-    let media = getItem<MediaItem[]>('editor_media_library');
-    
-    // If no editor content, get the live content
-    if (!media) {
-      media = getMediaLibrary();
-    }
-    
-    if (media && media.length > 0) {
-      setMediaLibraryState(media);
+  const loadMediaLibrary = async () => {
+    try {
+      // First try to get editor content
+      let media = await getItem<MediaItem[]>('editor_media_library');
       
-      // Extract unique tags
-      const allTags: string[] = [];
-      media.forEach(item => {
-        if (item.tags) {
-          item.tags.forEach(tag => {
-            if (!allTags.includes(tag)) {
-              allTags.push(tag);
-            }
-          });
-        }
-      });
+      // If no editor content, get the live content
+      if (!media) {
+        media = await getMediaLibrary();
+      }
       
-      setTags(allTags);
-    } else {
+      if (media && media.length > 0) {
+        setMediaLibraryState(media);
+        
+        // Extract unique tags
+        const allTags: string[] = [];
+        media.forEach(item => {
+          if (item.tags) {
+            item.tags.forEach(tag => {
+              if (!allTags.includes(tag)) {
+                allTags.push(tag);
+              }
+            });
+          }
+        });
+        
+        setTags(allTags);
+      } else {
+        setMediaLibraryState([]);
+        setTags([]);
+      }
+    } catch (error) {
+      console.error('Error loading media library:', error);
       setMediaLibraryState([]);
       setTags([]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const filterMedia = () => {
@@ -181,9 +190,9 @@ export default function MediaLibraryEditor() {
     
     try {
       // Save to localStorage
-      const success = setMediaLibrary(mediaLibrary);
+      const success = await setMediaLibrary(mediaLibrary);
       // Also update editor copy
-      setItem('editor_media_library', mediaLibrary);
+      await setItem('editor_media_library', mediaLibrary);
       
       if (success) {
         setSuccessMessage(language === 'fr'

@@ -34,8 +34,8 @@ export default function Objectives() {
     }
   ]);
 
-  const loadContent = () => {
-    const content = getPageContent('home');
+  const loadContent = async () => {
+    const content = await getPageContent('home');
     if (content) {
       // Find the objectives section
       const objectivesSection = content.sections.find(section => section.id === 'objectives');

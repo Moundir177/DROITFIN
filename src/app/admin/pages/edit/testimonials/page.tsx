@@ -18,18 +18,35 @@ export default function EditTestimonialsPage() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [pageContent, setPageData] = useState<PageContent | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Create a memoized loadPageContent function that can be used in event handlers
-  const loadPageContent = useCallback(() => {
+  // Load content on client side only
+  useEffect(() => {
+    setIsClient(true);
+    loadContent();
+  }, []);
+
+  // When the language changes, we should refresh the content too
+  useEffect(() => {
+    if (isClient) {
+      console.log('EditTestimonialsPage: Language changed, refreshing content');
+      // This forces a re-render with the new language
+      setForceRefresh(prev => prev + 1);
+    }
+  }, [language, isClient]);
+
+  // Load page content
+  const loadContent = useCallback(async () => {
+    setIsLoading(true);
     try {
-      // Get the exact page content (from editor or live)
-      const content = getExactPageContent('testimonials');
+      console.log('EditTestimonialsPage: Loading testimonials page content');
       
-      // Initialize with default content if empty
-      if (!content.sections || content.sections.length === 0) {
-        content.sections = [
+      // Get the complete testimonials page content
+      const content = await getExactPageContent('testimonials');
+      
+      if (content) {
+        // Define the exact content structure from the screenshots
+        const requiredSections = [
           {
             id: 'intro',
             title: {
@@ -37,8 +54,8 @@ export default function EditTestimonialsPage() {
               ar: 'الشهادات'
             },
             content: {
-              fr: 'Découvrez ce que nos bénéficiaires, partenaires et volontaires disent de notre travail',
-              ar: 'اكتشف ما يقوله المستفيدون وشركاؤنا ومتطوعونا عن عملنا'
+              fr: 'Découvrez ce que disent nos partenaires et bénéficiaires sur notre travail.',
+              ar: 'اكتشف ما يقوله شركاؤنا والمستفيدون عن عملنا.'
             }
           },
           {
@@ -95,99 +112,84 @@ export default function EditTestimonialsPage() {
               fr: 'Nom complet\nEmail\nOrganisation\nRôle / Fonction\nVotre expérience avec nous\nPartagez votre expérience en détail...\nVotre évaluation\nSoumettre votre témoignage',
               ar: 'الاسم الكامل\nالبريد الإلكتروني\nالمنظمة\nالدور / الوظيفة\nتجربتك معنا\nشارك تجربتك بالتفصيل...\nتقييمك\nإرسال شهادتك'
             }
+          },
+          {
+            id: 'newsletter',
+            title: {
+              fr: 'Restez informé(e)',
+              ar: 'ابق على اطلاع'
+            },
+            content: {
+              fr: 'Inscrivez-vous à notre newsletter pour recevoir les dernières actualités, publications et événements de la Fondation pour la promotion des droits.',
+              ar: 'اشترك في نشرتنا الإخبارية للحصول على آخر الأخبار والمنشورات والأحداث من مؤسسة تعزيز الحقوق.'
+            }
           }
         ];
         
-        // Save the initialized content
-        setPageContent(content);
+        // Get existing section IDs
+        const existingSectionIds = content.sections.map(section => section.id);
+        console.log('EditTestimonialsPage: Available sections:', existingSectionIds.join(', '));
+        
+        // Replace content sections with the exact required content
+        content.sections = requiredSections;
+        
+        console.log(`EditTestimonialsPage: Content loaded with ${content.sections.length} sections`);
+        setPageData(content);
+      } else {
+        console.error('EditTestimonialsPage: No content found for testimonials page');
       }
-      
-      setPageData(content);
-      setIsLoading(false);
-      
-      // Force a re-render by incrementing the forceRefresh counter
-      setForceRefresh(prev => prev + 1);
-      
-      // Add null check before accessing sections.map
-      console.log('Testimonials page editor - Loaded content with sections:', content?.sections?.map(s => s.id) || []);
     } catch (error) {
-      console.error('Error loading testimonials page content in editor:', error);
+      console.error('EditTestimonialsPage: Error loading content:', error);
+    } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    setIsClient(true);
-    
-    // Initial content load
-    loadPageContent();
-    
-    // Add event listeners for content updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_testimonials' || event.key === 'editor_testimonials') {
-        console.log('Testimonials page editor - Storage change detected for key:', event.key);
-        loadPageContent();
-      }
-    };
-    
-    const handleContentUpdated = () => {
-      console.log('Testimonials page editor - Content updated event received');
-      loadPageContent();
-    };
-    
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for our custom content updated event
-    window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    };
-  }, [loadPageContent]);
-  
-  // Also refresh when language changes
-  useEffect(() => {
-    if (isClient) {
-      console.log('Testimonials page editor - Language changed, refreshing content');
-      setForceRefresh(prev => prev + 1);
-    }
-  }, [language, isClient]);
-
   const handleSave = async (content: PageContent): Promise<boolean> => {
     try {
+      console.log('EditTestimonialsPage: Saving testimonials page content with sections:', 
+        content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
+      
       // Save the content to localStorage
-      const success = setPageContent(content);
+      const success = await setPageContent(content);
       
       if (success) {
         // Force immediate update of the component state
         setPageData(content);
         
-        // Set success message
-        setSaveSuccess(true);
-        
-        // Prepare content string for events
+        // Convert content to string once for efficiency
         const contentString = JSON.stringify(content);
         
+        console.log('EditTestimonialsPage: Content saved successfully, dispatching update events');
+        
         // Dispatch a custom event to notify all components that content has been updated
-        window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+        try {
+          window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+          console.log(`EditTestimonialsPage: Dispatched ${CONTENT_UPDATED_EVENT} event`);
+        } catch (error) {
+          console.error(`Error dispatching ${CONTENT_UPDATED_EVENT} event:`, error);
+        }
         
         // Force re-rendering of other components by triggering localStorage events
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `page_testimonials`,
-          newValue: contentString
-        }));
+        try {
+          // First dispatch for the main page content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `page_${content.id}`,
+            newValue: contentString
+          }));
+          
+          // Then dispatch for the editor content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `editor_${content.id}`,
+            newValue: contentString
+          }));
+          
+          console.log(`EditTestimonialsPage: Dispatched storage events for page_${content.id} and editor_${content.id}`);
+        } catch (error) {
+          console.error('Error dispatching storage events:', error);
+        }
         
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `editor_testimonials`,
-          newValue: contentString
-        }));
-        
-        // Force a re-render on this component too
-        setForceRefresh(prev => prev + 1);
-        
-        // Redirect after short delay
+        // Delay redirect to give time for updates to propagate
         setTimeout(() => {
           router.push('/admin/pages');
         }, 1500);
@@ -195,7 +197,7 @@ export default function EditTestimonialsPage() {
       
       return success;
     } catch (error) {
-      console.error('Error saving testimonials content:', error);
+      console.error('EditTestimonialsPage: Error saving content:', error);
       return false;
     }
   };
@@ -230,14 +232,6 @@ export default function EditTestimonialsPage() {
               ? 'Modifiez le contenu de la page Témoignages ci-dessous. Les modifications seront visibles sur le site après l\'enregistrement.'
               : 'قم بتعديل محتوى صفحة الشهادات أدناه. ستظهر التغييرات على الموقع بعد الحفظ.'}
           </p>
-          
-          {saveSuccess && (
-            <div className="bg-green-100 text-green-800 p-4 mb-4 rounded">
-              {language === 'fr' 
-                ? 'Modifications enregistrées avec succès!' 
-                : 'تم حفظ التغييرات بنجاح!'}
-            </div>
-          )}
           
           <PageContentEditor
             pageId="testimonials"

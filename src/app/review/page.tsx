@@ -272,11 +272,12 @@ export default function ReviewPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
+  const [isClient, setIsClient] = useState(false);
   
-  // Function to load page content from localStorage with better error handling
-  const loadContent = () => {
+  const loadContent = async () => {
     try {
-      const content = getPageContent('review');
+      const content = await getPageContent('review');
+      
       if (content) {
         console.log('Review page - Content loaded with sections:', 
           content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
@@ -290,28 +291,28 @@ export default function ReviewPage() {
   };
   
   useEffect(() => {
-    // Load content on initial render
+    setIsClient(true);
+    
+    // Initial content load
     loadContent();
     
-    // Set up event listeners for content updates
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_review' || event.key === 'editor_review') {
-        console.log('Review page - Storage change detected for key:', event.key);
-        // Force complete refresh from localStorage
+      if (event.key === 'page_review') {
+        console.log('Review page - Storage change detected');
         loadContent();
       }
     };
     
     const handleContentUpdated = () => {
       console.log('Review page - Content updated event received');
-      // Force complete refresh
       loadContent();
     };
     
     // Listen for direct localStorage changes
     window.addEventListener('storage', handleStorageChange);
     
-    // Listen for custom content updated event
+    // Listen for our custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {
@@ -1273,7 +1274,7 @@ export default function ReviewPage() {
                         download
                       >
                         <FaDownload className={language === 'ar' ? 'ml-2' : 'mr-2'} />
-                        {language === 'fr' ? 'Télécharger (PDF)' : 'تحميل (PDF)'}
+                        {language === 'fr' ? 'Télécharger PDF' : 'تحميل PDF'}
                       </Link>
                     </motion.div>
                   </motion.div>

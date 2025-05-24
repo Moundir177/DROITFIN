@@ -10,13 +10,16 @@ export const isProduction = () => {
 // Base API URL based on environment
 export const getApiBaseUrl = () => {
   if (isProduction()) {
-    // In production, use the deployed worker
-    return `${window.location.origin}/api`;
+    // In production, use the deployed worker URL directly
+    return 'https://droitfpra.moundix-neuf19.workers.dev/api';
   } else {
     // In development, use localStorage (handled directly in database.ts)
     return null;
   }
 };
+
+// Add debug mode for logging
+const DEBUG = true;
 
 // Generic API call function
 export const apiCall = async <T>(
@@ -30,20 +33,39 @@ export const apiCall = async <T>(
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) return null;
   
+  const url = `${baseUrl}/${endpoint}`;
+  
+  if (DEBUG) {
+    console.log(`API ${method} call to: ${url}`);
+    if (data) console.log(`Request data:`, data);
+  }
+  
   try {
     const options: RequestInit = {
       method,
       headers: {
         'Content-Type': 'application/json',
       },
+      // Allow credentials for cookies if needed later
+      credentials: 'include',
     };
     
     if (data && (method === 'POST' || method === 'PUT')) {
       options.body = JSON.stringify(data);
     }
     
-    const response = await fetch(`${baseUrl}/${endpoint}`, options);
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      console.error(`API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+    
     const responseData = await response.json();
+    
+    if (DEBUG) {
+      console.log(`API response:`, responseData);
+    }
     
     if (!responseData.success) {
       console.error(`API Error (${endpoint}):`, responseData.error);

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "deploy": "npx wrangler pages deploy out --project-name droitfpra",
-    "deploy:worker": "npx wrangler publish",
+    "deploy:worker": "npx wrangler deploy src/worker/index.ts",
     "deploy:full": "npm run build && npm run deploy && npm run deploy:worker",
     "init:kv": "npx wrangler kv:namespace create DROIT_KV"
   },

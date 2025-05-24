@@ -21,8 +21,8 @@ export default function Stats() {
   const isInView = useInView(ref, { once: true, amount: 0.3 });
   const { language, t } = useLanguage();
 
-  const loadContent = () => {
-    const content = getPageContent('home');
+  const loadContent = async () => {
+    const content = await getPageContent('home');
     if (content) {
       // Find the impact section
       const impactSection = content.sections.find(section => section.id === 'impact');

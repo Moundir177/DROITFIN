@@ -36,8 +36,8 @@ export default function VisualIdentity() {
     }
   ]);
 
-  const loadContent = () => {
-    const content = getPageContent('home');
+  const loadContent = async () => {
+    const content = await getPageContent('home');
     if (content) {
       console.log('VisualIdentity - Loading content, available sections:', content.sections.map(s => s.id));
       

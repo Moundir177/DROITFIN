@@ -20,34 +20,43 @@ export default function GlobalContentEditor() {
 
   useEffect(() => {
     setIsClient(true);
-    loadGlobalContent();
+    const initializeContent = async () => {
+      await loadGlobalContent();
+    };
+    initializeContent();
   }, []);
 
   useEffect(() => {
     filterContent();
   }, [selectedCategory, globalContent, searchTerm]);
 
-  const loadGlobalContent = () => {
-    // First try to get editor content
-    let content = getItem<GlobalContent[]>('editor_global_content');
-    
-    // If no editor content, get the live content
-    if (!content) {
-      content = getGlobalContent();
-    }
-    
-    if (content && content.length > 0) {
-      setGlobalContentState(content);
+  const loadGlobalContent = async () => {
+    try {
+      // First try to get editor content
+      let content = await getItem<GlobalContent[]>('editor_global_content');
       
-      // Extract unique categories
-      const uniqueCategories = Array.from(new Set(content.map(item => item.category)));
-      setCategories(uniqueCategories);
-    } else {
+      // If no editor content, get the live content
+      if (!content) {
+        content = await getGlobalContent();
+      }
+      
+      if (content && content.length > 0) {
+        setGlobalContentState(content);
+        
+        // Extract unique categories
+        const uniqueCategories = Array.from(new Set(content.map(item => item.category)));
+        setCategories(uniqueCategories);
+      } else {
+        setGlobalContentState([]);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('Error loading global content:', error);
       setGlobalContentState([]);
       setCategories([]);
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   };
 
   const filterContent = () => {
@@ -133,9 +142,9 @@ export default function GlobalContentEditor() {
     
     try {
       // Save to localStorage
-      const success = setGlobalContent(globalContent);
+      const success = await setGlobalContent(globalContent);
       // Also update editor copy
-      setItem('editor_global_content', globalContent);
+      await setItem('editor_global_content', globalContent);
       
       if (success) {
         setSuccessMessage(language === 'fr'

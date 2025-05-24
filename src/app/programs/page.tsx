@@ -113,11 +113,12 @@ export default function Programs() {
   const [pageContent, setPageContent] = useState<PageContent | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isClient, setIsClient] = useState(false);
   
-  // Function to load page content from localStorage with better error handling
-  const loadContent = () => {
+  const loadContent = async () => {
     try {
-      const content = getPageContent('programs');
+      const content = await getPageContent('programs');
+      
       if (content) {
         console.log('Programs page - Content loaded with sections:', 
           content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
@@ -131,21 +132,21 @@ export default function Programs() {
   };
 
   useEffect(() => {
-    // Load content on initial render
+    setIsClient(true);
+    
+    // Initial content load
     loadContent();
     
-    // Set up event listeners for content updates
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_programs' || event.key === 'editor_programs') {
-        console.log('Programs page - Storage change detected for key:', event.key);
-        // Force complete refresh from localStorage
+      if (event.key === 'page_programs') {
+        console.log('Programs page - Storage change detected');
         loadContent();
       }
     };
     
     const handleContentUpdated = () => {
       console.log('Programs page - Content updated event received');
-      // Force complete refresh
       loadContent();
     };
     
@@ -158,7 +159,7 @@ export default function Programs() {
     // Listen for direct localStorage changes
     window.addEventListener('storage', handleStorageChange);
     
-    // Listen for custom content updated event
+    // Listen for our custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {

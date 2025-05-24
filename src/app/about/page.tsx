@@ -34,11 +34,15 @@ export default function AboutPage() {
     };
   }, []);
 
-  const loadContent = () => {
-    const content = getPageContent('about');
-    if (content) {
-      console.log('About page - Content loaded:', content);
-      setPageContent(content);
+  const loadContent = async () => {
+    try {
+      const content = await getPageContent('about');
+      if (content) {
+        console.log('About page - Content loaded:', content);
+        setPageContent(content);
+      }
+    } catch (error) {
+      console.error('Error loading about page content:', error);
     }
   };
 

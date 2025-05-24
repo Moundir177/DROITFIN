@@ -15,11 +15,18 @@ export default function Mission() {
   const isInView = useInView(ref, { once: true, amount: 0.2 });
 
   useEffect(() => {
-    // Load page content from database
-    const content = getPageContent('home');
-    if (content) {
-      setPageContent(content);
-    }
+    const loadContent = async () => {
+      try {
+        const content = await getPageContent('home');
+        if (content) {
+          setPageContent(content);
+        }
+      } catch (error) {
+        console.error('Error loading mission content:', error);
+      }
+    };
+    
+    loadContent();
   }, []);
 
   // Get mission and droits_egaux sections

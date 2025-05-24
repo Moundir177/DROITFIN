@@ -18,68 +18,125 @@ export default function EditAboutPage() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [pageContent, setPageData] = useState<PageContent | null>(null);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Create a memoized loadPageContent function that can be used in event handlers
-  const loadPageContent = useCallback(() => {
-    // Make sure all necessary sections are available
-    updateAboutPageWithAllSections();
-    // Get the exact page content (from editor or live)
-    const content = getExactPageContent('about');
-    setPageData(content);
-    setIsLoading(false);
-    
-    console.log('About page editor - Loaded content with sections:', content?.sections?.map(s => s.id) || []);
-  }, []);
-
+  // Load content on client side only
   useEffect(() => {
     setIsClient(true);
-    
-    // Initial content load
-    loadPageContent();
-    
-    // Add event listeners for content updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_about' || event.key === 'editor_about') {
-        console.log('About page editor - Storage change detected');
-        loadPageContent();
+    loadContent();
+  }, []);
+
+  // When the language changes, we should refresh the content too
+  useEffect(() => {
+    if (isClient) {
+      console.log('EditAboutPage: Language changed, refreshing content');
+      // This forces a re-render with the new language
+      setForceRefresh(prev => prev + 1);
+    }
+  }, [language, isClient]);
+
+  // Load page content
+  const loadContent = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log('EditAboutPage: Loading about page content');
+      
+      // First make sure all sections are added to the about page
+      await updateAboutPageWithAllSections();
+      
+      // Then get the complete about page content
+      const content = await getExactPageContent('about');
+      
+      if (content) {
+        // Make sure we have all required sections for the about page
+        const requiredSectionIds = [
+          'intro', 'mission', 'vision', 'justice', 'objectives',
+          'objectives_intro', 'target_audience', 'history', 'founder'
+        ];
+        
+        // Check if any required sections are missing
+        const existingSectionIds = content.sections.map(section => section.id);
+        
+        console.log('EditAboutPage: Available sections:', existingSectionIds.join(', '));
+        console.log('EditAboutPage: Required sections:', requiredSectionIds.join(', '));
+        
+        const missingSectionIds = requiredSectionIds.filter(id => !existingSectionIds.includes(id));
+        
+        if (missingSectionIds.length > 0) {
+          console.log('EditAboutPage: Missing sections:', missingSectionIds.join(', '));
+          // Add missing sections on the fly
+          for (const id of missingSectionIds) {
+            content.sections.push({
+              id: id,
+              title: {
+                fr: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' '),
+                ar: id
+              },
+              content: {
+                fr: `Contenu de la section ${id}`,
+                ar: `محتوى القسم ${id}`
+              }
+            });
+          }
+        }
+        
+        console.log(`EditAboutPage: Content loaded with ${content.sections.length} sections`);
+        setPageData(content);
+      } else {
+        console.error('EditAboutPage: No content found for about page');
       }
-    };
-    
-    const handleContentUpdated = () => {
-      console.log('About page editor - Content updated event received');
-      loadPageContent();
-    };
-    
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for our custom content updated event
-    window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    };
-  }, [loadPageContent]);
+    } catch (error) {
+      console.error('EditAboutPage: Error loading content:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   const handleSave = async (content: PageContent): Promise<boolean> => {
     try {
+      console.log('EditAboutPage: Saving about page content with sections:', 
+        content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
+      
       // Save the content to localStorage
-      const success = setPageContent(content);
+      const success = await setPageContent(content);
       
       if (success) {
         // Force immediate update of the component state
         setPageData(content);
         
+        // Convert content to string once for efficiency
+        const contentString = JSON.stringify(content);
+        
+        console.log('EditAboutPage: Content saved successfully, dispatching update events');
+        
         // Dispatch a custom event to notify all components that content has been updated
-        window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+        try {
+          window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+          console.log(`EditAboutPage: Dispatched ${CONTENT_UPDATED_EVENT} event`);
+        } catch (error) {
+          console.error(`Error dispatching ${CONTENT_UPDATED_EVENT} event:`, error);
+        }
         
-        // Force re-rendering of other components by triggering localStorage event
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `page_about`,
-          newValue: JSON.stringify(content)
-        }));
+        // Force re-rendering of other components by triggering localStorage events
+        try {
+          // First dispatch for the main page content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `page_${content.id}`,
+            newValue: contentString
+          }));
+          
+          // Then dispatch for the editor content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `editor_${content.id}`,
+            newValue: contentString
+          }));
+          
+          console.log(`EditAboutPage: Dispatched storage events for page_${content.id} and editor_${content.id}`);
+        } catch (error) {
+          console.error('Error dispatching storage events:', error);
+        }
         
+        // Delay redirect to give time for updates to propagate
         setTimeout(() => {
           router.push('/admin/pages');
         }, 1500);
@@ -87,7 +144,7 @@ export default function EditAboutPage() {
       
       return success;
     } catch (error) {
-      console.error('Error saving content', error);
+      console.error('EditAboutPage: Error saving content:', error);
       return false;
     }
   };
@@ -98,7 +155,7 @@ export default function EditAboutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-gray-100 flex" key={`about-editor-${forceRefresh}`} suppressHydrationWarning>
       <AdminSidebar />
       
       <main className="flex-1 p-8">

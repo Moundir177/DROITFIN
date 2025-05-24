@@ -49,11 +49,12 @@ export default function TestimonialsPage() {
   const [forceRefresh, setForceRefresh] = useState(0);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [isClient, setIsClient] = useState(false);
   
-  // Function to load page content from localStorage
-  const loadContent = () => {
+  const loadContent = async () => {
     try {
-      const content = getPageContent('testimonials');
+      const content = await getPageContent('testimonials');
+      
       if (content) {
         console.log('Testimonials page - Content loaded with sections:', 
           content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
@@ -67,28 +68,28 @@ export default function TestimonialsPage() {
   };
   
   useEffect(() => {
-    // Load content on initial render
+    setIsClient(true);
+    
+    // Initial content load
     loadContent();
     
-    // Set up event listeners for content updates
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_testimonials' || event.key === 'editor_testimonials') {
-        console.log('Testimonials page - Storage change detected for key:', event.key);
-        // Force complete refresh from localStorage
+      if (event.key === 'page_testimonials') {
+        console.log('Testimonials page - Storage change detected');
         loadContent();
       }
     };
     
     const handleContentUpdated = () => {
       console.log('Testimonials page - Content updated event received');
-      // Force complete refresh
       loadContent();
     };
     
     // Listen for direct localStorage changes
     window.addEventListener('storage', handleStorageChange);
     
-    // Listen for custom content updated event
+    // Listen for our custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {

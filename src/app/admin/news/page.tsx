@@ -18,23 +18,31 @@ export default function AdminNewsPage() {
 
   useEffect(() => {
     setIsClient(true);
-    loadNews();
+    const initializeNews = async () => {
+      await loadNews();
+    };
+    initializeNews();
   }, []);
 
-  const loadNews = () => {
+  const loadNews = async () => {
     setIsLoading(true);
-    // In a real application, this would be an API call
-    const news = getNews();
-    setNewsItems(news);
-    setIsLoading(false);
+    try {
+      // In a real application, this would be an API call
+      const news = await getNews();
+      setNewsItems(news);
+    } catch (error) {
+      console.error('Error loading news:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (window.confirm(language === 'fr' 
       ? 'Êtes-vous sûr de vouloir supprimer cette actualité ?' 
       : 'هل أنت متأكد أنك تريد حذف هذا الخبر؟')) {
-      deleteNewsItem(id);
-      loadNews();
+      await deleteNewsItem(id);
+      await loadNews();
     }
   };
 

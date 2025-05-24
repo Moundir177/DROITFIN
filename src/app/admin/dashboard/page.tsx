@@ -30,10 +30,17 @@ export default function AdminDashboard() {
     // Check if database is initialized
     const dbInit = localStorage.getItem('dbInitialized');
     if (!dbInit) {
-      // Initialize database with default values
-      initializeDatabase();
-      localStorage.setItem('dbInitialized', 'true');
-      setIsDbInitialized(true);
+      // Initialize database with default values - locally and on the backend
+      const initDb = async () => {
+        await initializeDatabase();
+        localStorage.setItem('dbInitialized', 'true');
+        setIsDbInitialized(true);
+        
+        // Log initialization for debugging
+        console.log('Database initialized with default values');
+      };
+      
+      initDb();
     } else {
       setIsDbInitialized(true);
     }
@@ -63,17 +70,21 @@ export default function AdminDashboard() {
     }
   }, [router, isClient, isAuthenticated]);
 
-  const refreshStats = () => {
-    // Get real stats from database
-    const news = getNews();
-    const resources = getResources();
-    const pages = getAllPages();
-    
-    setStats({
-      pages: pages.length,
-      news: news.length,
-      resources: resources.length
-    });
+  const refreshStats = async () => {
+    try {
+      // Get real stats from database
+      const news = await getNews();
+      const resources = await getResources();
+      const pages = await getAllPages();
+      
+      setStats({
+        pages: pages.length,
+        news: news.length,
+        resources: resources.length
+      });
+    } catch (error) {
+      console.error('Error refreshing stats:', error);
+    }
   };
   
   const createDefaultEdits = () => {
@@ -102,15 +113,15 @@ export default function AdminDashboard() {
     localStorage.setItem('recentEdits', JSON.stringify(defaultEdits));
   };
 
-  const handleSyncContent = () => {
+  const handleSyncContent = async () => {
     setIsSyncing(true);
     try {
       // Sync all content to editor
-      const success = syncContentToEditor();
+      const success = await syncContentToEditor();
       
       if (success) {
         // Refresh all stats
-        refreshStats();
+        await refreshStats();
         // Show success message or notification
         window.alert(language === 'fr' 
           ? 'Contenu synchronisé avec succès pour l\'édition!' 
@@ -139,7 +150,7 @@ export default function AdminDashboard() {
     );
   }
 
-  const handleResetContent = () => {
+  const handleResetContent = async () => {
     if (window.confirm(language === 'fr' 
       ? 'Cette action réinitialisera tout le contenu aux valeurs par défaut. Êtes-vous sûr de vouloir continuer?' 
       : 'سيؤدي هذا الإجراء إلى إعادة تعيين كل المحتوى إلى القيم الافتراضية. هل أنت متأكد من أنك تريد المتابعة؟')) {
@@ -159,20 +170,25 @@ export default function AdminDashboard() {
       // Remove the initialization flag to force reinitialize
       localStorage.removeItem('dbInitialized');
       
-      // Initialize the database with default values
-      initializeDatabase();
-      localStorage.setItem('dbInitialized', 'true');
-      
-      // Create default recent edits
-      createDefaultEdits();
-      
-      // Refresh statistics
-      refreshStats();
-      
-      setTimeout(() => {
+      try {
+        // Initialize the database with default values
+        await initializeDatabase();
+        localStorage.setItem('dbInitialized', 'true');
+        
+        // Create default recent edits
+        createDefaultEdits();
+        
+        // Refresh statistics
+        await refreshStats();
+        
+        setTimeout(() => {
+          setIsResetting(false);
+          window.location.reload();
+        }, 1000);
+      } catch (error) {
+        console.error('Error resetting content:', error);
         setIsResetting(false);
-        window.location.reload();
-      }, 1000);
+      }
     }
   };
 

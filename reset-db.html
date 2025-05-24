@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Local Database</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            margin-top: 40px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        p {
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #c0392b;
+        }
+        .success {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #dff0d8;
+            color: #3c763d;
+            border-radius: 4px;
+            display: none;
+        }
+        .instructions {
+            text-align: left;
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Reset Local Database</h1>
+        <p>Use this tool to reset your local database and repopulate it with default content.</p>
+        <button id="resetButton">Reset Local Database</button>
+        <div id="success" class="success">
+            Database has been reset successfully! <a href="http://localhost:3000">Go to website</a>
+        </div>
+
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <ol>
+                <li>Click the "Reset Local Database" button above</li>
+                <li>The localStorage will be cleared except for authentication and language settings</li>
+                <li>The "dbInitialized" flag will be removed</li>
+                <li>Visit <a href="http://localhost:3000">http://localhost:3000</a> after resetting</li>
+                <li>The database will be reinitialized with all default content on page load</li>
+            </ol>
+            <p><strong>Important:</strong> Make sure your local development server is running (<code>npm run dev</code>).</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('resetButton').addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset the local database? This will clear all content and restore defaults.')) {
+                // Save admin auth if it exists
+                const adminAuth = localStorage.getItem('adminAuth');
+                const lang = localStorage.getItem('language');
+                
+                // Clear everything
+                localStorage.clear();
+                
+                // Restore admin auth and language
+                if (adminAuth) localStorage.setItem('adminAuth', adminAuth);
+                if (lang) localStorage.setItem('language', lang);
+                
+                // Remove initialization flag to force re-initialization
+                localStorage.removeItem('dbInitialized');
+                
+                // Show success message
+                document.getElementById('success').style.display = 'block';
+                
+                console.log('localStorage reset complete!');
+            }
+        });
+    </script>
+</body>
+</html> 

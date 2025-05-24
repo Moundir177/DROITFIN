@@ -20,144 +20,119 @@ export default function EditNewsPage() {
   const [pageContent, setPageData] = useState<PageContent | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Create a memoized loadPageContent function that can be used in event handlers
-  const loadPageContent = useCallback(() => {
-    try {
-      // Get the exact page content (from editor or live)
-      const content = getExactPageContent('news');
-      
-      // Initialize with default content if empty
-      if (!content.sections || content.sections.length === 0) {
-        content.sections = [
-          {
-            id: 'intro',
-            title: {
-              fr: 'Actualités',
-              ar: 'الأخبار'
-            },
-            content: {
-              fr: 'Restez informé des dernières initiatives, événements et développements concernant notre travail sur les droits humains.',
-              ar: 'ابق على اطلاع بآخر المبادرات والأحداث والتطورات المتعلقة بعملنا في مجال حقوق الإنسان.'
-            }
-          },
-          {
-            id: 'categories',
-            title: {
-              fr: 'Catégories',
-              ar: 'التصنيفات'
-            },
-            content: {
-              fr: 'Formation\nRapports\nPartenariats\nÉvénements\nProgrammes',
-              ar: 'تدريب\nتقارير\nشراكات\nفعاليات\nبرامج'
-            }
-          },
-          {
-            id: 'featured',
-            title: {
-              fr: 'À la une',
-              ar: 'المميزة'
-            },
-            content: {
-              fr: 'Découvrez nos actualités à la une, mettant en lumière nos principales initiatives et réalisations dans le domaine des droits.',
-              ar: 'اكتشف أخبارنا المميزة، التي تسلط الضوء على مبادراتنا وإنجازاتنا الرئيسية في مجال الحقوق.'
-            }
-          },
-          {
-            id: 'recent',
-            title: {
-              fr: 'Actualités récentes',
-              ar: 'الأخبار الحديثة'
-            },
-            content: {
-              fr: 'Consultez nos dernières activités, projets et engagements en faveur des droits fondamentaux.',
-              ar: 'اطلع على آخر أنشطتنا ومشاريعنا والتزاماتنا لصالح الحقوق الأساسية.'
-            }
-          }
-        ];
-        
-        // Save the initialized content
-        setPageContent(content);
-      }
-      
-      setPageData(content);
-      setIsLoading(false);
-      setForceRefresh(prev => prev + 1);
-      
-      console.log('News page editor - Loaded content with sections:', content?.sections?.map(s => s.id) || []);
-    } catch (error) {
-      console.error('Error loading news page content in editor:', error);
-      setIsLoading(false);
-    }
-  }, []);
-
+  // Load content on client side only
   useEffect(() => {
     setIsClient(true);
-    
-    // Initial content load
-    loadPageContent();
-    
-    // Add event listeners for content updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_news' || event.key === 'editor_news') {
-        console.log('News page editor - Storage change detected for key:', event.key);
-        loadPageContent();
-      }
-    };
-    
-    const handleContentUpdated = () => {
-      console.log('News page editor - Content updated event received');
-      loadPageContent();
-    };
-    
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for our custom content updated event
-    window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    };
-  }, [loadPageContent]);
+    loadContent();
+  }, []);
 
-  // Also refresh when language changes
+  // When the language changes, we should refresh the content too
   useEffect(() => {
     if (isClient) {
-      console.log('News page editor - Language changed, refreshing content');
+      console.log('EditNewsPage: Language changed, refreshing content');
+      // This forces a re-render with the new language
       setForceRefresh(prev => prev + 1);
     }
   }, [language, isClient]);
 
+  // Load page content
+  const loadContent = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log('EditNewsPage: Loading news page content');
+      
+      // Get the complete news page content
+      const content = await getExactPageContent('news');
+      
+      if (content) {
+        // Make sure we have all required sections for the news page
+        const requiredSectionIds = [
+          'intro', 'latest', 'archive'
+        ];
+        
+        // Check if any required sections are missing
+        const existingSectionIds = content.sections.map(section => section.id);
+        
+        console.log('EditNewsPage: Available sections:', existingSectionIds.join(', '));
+        console.log('EditNewsPage: Required sections:', requiredSectionIds.join(', '));
+        
+        const missingSectionIds = requiredSectionIds.filter(id => !existingSectionIds.includes(id));
+        
+        if (missingSectionIds.length > 0) {
+          console.log('EditNewsPage: Missing sections:', missingSectionIds.join(', '));
+          // Add missing sections on the fly
+          for (const id of missingSectionIds) {
+            content.sections.push({
+              id: id,
+              title: {
+                fr: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' '),
+                ar: id
+              },
+              content: {
+                fr: `Contenu de la section ${id}`,
+                ar: `محتوى القسم ${id}`
+              }
+            });
+          }
+        }
+        
+        console.log(`EditNewsPage: Content loaded with ${content.sections.length} sections`);
+        setPageData(content);
+      } else {
+        console.error('EditNewsPage: No content found for news page');
+      }
+    } catch (error) {
+      console.error('EditNewsPage: Error loading content:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const handleSave = async (content: PageContent): Promise<boolean> => {
     try {
+      console.log('EditNewsPage: Saving news page content with sections:', 
+        content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
+      
       // Save the content to localStorage
-      const success = setPageContent(content);
+      const success = await setPageContent(content);
       
       if (success) {
         // Force immediate update of the component state
         setPageData(content);
         
-        // Prepare content string for events
+        // Convert content to string once for efficiency
         const contentString = JSON.stringify(content);
         
+        console.log('EditNewsPage: Content saved successfully, dispatching update events');
+        
         // Dispatch a custom event to notify all components that content has been updated
-        window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+        try {
+          window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+          console.log(`EditNewsPage: Dispatched ${CONTENT_UPDATED_EVENT} event`);
+        } catch (error) {
+          console.error(`Error dispatching ${CONTENT_UPDATED_EVENT} event:`, error);
+        }
         
         // Force re-rendering of other components by triggering localStorage events
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `page_news`,
-          newValue: contentString
-        }));
+        try {
+          // First dispatch for the main page content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `page_${content.id}`,
+            newValue: contentString
+          }));
+          
+          // Then dispatch for the editor content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `editor_${content.id}`,
+            newValue: contentString
+          }));
+          
+          console.log(`EditNewsPage: Dispatched storage events for page_${content.id} and editor_${content.id}`);
+        } catch (error) {
+          console.error('Error dispatching storage events:', error);
+        }
         
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `editor_news`,
-          newValue: contentString
-        }));
-        
-        // Force a re-render on this component too
-        setForceRefresh(prev => prev + 1);
-        
+        // Delay redirect to give time for updates to propagate
         setTimeout(() => {
           router.push('/admin/pages');
         }, 1500);
@@ -165,7 +140,7 @@ export default function EditNewsPage() {
       
       return success;
     } catch (error) {
-      console.error('Error saving news content:', error);
+      console.error('EditNewsPage: Error saving content:', error);
       return false;
     }
   };

@@ -20,9 +20,11 @@ export default function WebsiteStructureEditor() {
     loadStructure();
   }, []);
 
-  const loadStructure = () => {
-    // Get website structure from local storage
-    const websiteStructure = getItem<WebsiteStructure>('websiteStructure');
+  const loadStructure = async () => {
+    setIsLoading(true);
+    
+    // Get website structure from localStorage
+    const websiteStructure = await getItem<WebsiteStructure>('websiteStructure');
     
     if (websiteStructure) {
       setStructure(websiteStructure);
@@ -225,13 +227,13 @@ export default function WebsiteStructureEditor() {
     
     try {
       // Save to localStorage
-      const success = setItem('websiteStructure', structure);
+      const success = await setItem('websiteStructure', structure);
       
       if (success) {
         setSuccessMessage(language === 'fr'
           ? 'Structure du site enregistrée avec succès'
           : 'تم حفظ هيكل الموقع بنجاح');
-          
+        
         // Hide success message after 3 seconds
         setTimeout(() => {
           setSuccessMessage('');

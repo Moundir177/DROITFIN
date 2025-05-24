@@ -20,166 +20,120 @@ export default function EditReviewPage() {
   const [pageContent, setPageData] = useState<PageContent | null>(null);
   const [forceRefresh, setForceRefresh] = useState(0);
 
-  // Create a memoized loadPageContent function that can be used in event handlers
-  const loadPageContent = useCallback(() => {
-    try {
-      // Get the exact page content (from editor or live)
-      const content = getExactPageContent('review');
-      
-      // Initialize with default content if empty
-      if (!content.sections || content.sections.length === 0) {
-        content.sections = [
-          {
-            id: 'intro',
-            title: {
-              fr: 'Revue & Publications',
-              ar: 'المراجعة والمنشورات'
-            },
-            content: {
-              fr: 'Explorez nos analyses et publications sur les droits humains et les enjeux juridiques actuels',
-              ar: 'استكشف تحليلاتنا ومنشوراتنا حول حقوق الإنسان والقضايا القانونية الحالية'
-            }
-          },
-          {
-            id: 'coming_soon',
-            title: {
-              fr: 'Notre première revue arrive en juillet 2025 !',
-              ar: 'تصدر مجلتنا الأولى في يوليو 2025!'
-            },
-            content: {
-              fr: 'Nous avons le plaisir de vous annoncer que la première édition de notre revue sera publiée en juillet 2025. Cette revue trimestrielle abordera les questions juridiques, les droits humains et les enjeux sociaux actuels.',
-              ar: 'يسرنا أن نعلن أن العدد الأول من مجلتنا سيصدر في يوليو 2025. ستتناول هذه المجلة الفصلية القضايا القانونية وحقوق الإنسان والقضايا الاجتماعية الحالية.'
-            }
-          },
-          {
-            id: 'contribution',
-            title: {
-              fr: 'Vous souhaitez contribuer ?',
-              ar: 'هل ترغب في المساهمة؟'
-            },
-            content: {
-              fr: 'Nous invitons les chercheurs, juristes, académiciens et experts à contribuer à notre revue. Si vous souhaitez soumettre un article ou partager votre expertise, n\'hésitez pas à nous contacter via notre formulaire de contact ou sur nos réseaux sociaux.',
-              ar: 'ندعو الباحثين والمحامين والأكاديميين والخبراء للمساهمة في مجلتنا. إذا كنت ترغب في تقديم مقالة أو مشاركة خبرتك، فلا تتردد في الاتصال بنا من خلال نموذج الاتصال الخاص بنا أو على وسائل التواصل الاجتماعي.'
-            }
-          },
-          {
-            id: 'recent_publications',
-            title: {
-              fr: 'Publications récentes',
-              ar: 'المنشورات الحديثة'
-            },
-            content: {
-              fr: 'Découvrez l\'ensemble de nos ressources documentaires sur les droits humains et les questions juridiques.',
-              ar: 'اكتشف جميع مواردنا الوثائقية حول حقوق الإنسان والقضايا القانونية.'
-            }
-          },
-          {
-            id: 'media_library',
-            title: {
-              fr: 'Médiathèque',
-              ar: 'مكتبة الوسائط'
-            },
-            content: {
-              fr: 'Explorez notre collection de ressources audiovisuelles sur les droits humains.',
-              ar: 'استكشف مجموعتنا من الموارد السمعية البصرية حول حقوق الإنسان.'
-            }
-          },
-          {
-            id: 'featured',
-            title: {
-              fr: 'Publication à la une',
-              ar: 'المنشور المميز'
-            },
-            content: {
-              fr: 'Notre rapport annuel présente un aperçu complet de l\'état des droits humains en Algérie.\n\nRapport annuel 2023\nMai 2023 | 120 pages\nCe rapport présente un aperçu complet de l\'état des droits humains en Algérie en 2023. Il aborde les avancées et défis dans différents domaines, notamment les libertés civiles, les droits économiques et sociaux, et l\'accès à la justice.',
-              ar: 'يقدم تقريرنا السنوي نظرة شاملة عن حالة حقوق الإنسان في الجزائر.\n\nالتقرير السنوي 2023\nمايو 2023 | 120 صفحة\nيقدم هذا التقرير نظرة شاملة عن حالة حقوق الإنسان في الجزائر في عام 2023. ويتناول التقدم والتحديات في مختلف المجالات، بما في ذلك الحريات المدنية والحقوق الاقتصادية والاجتماعية والوصول إلى العدالة.'
-            }
-          }
-        ];
-        
-        // Save the initialized content
-        setPageContent(content);
-      }
-      
-      setPageData(content);
-      setIsLoading(false);
-      setForceRefresh(prev => prev + 1);
-      
-      console.log('Review page editor - Loaded content with sections:', content?.sections?.map(s => s.id) || []);
-    } catch (error) {
-      console.error('Error loading review page content in editor:', error);
-      setIsLoading(false);
-    }
-  }, []);
-
+  // Load content on client side only
   useEffect(() => {
     setIsClient(true);
-    
-    // Initial content load
-    loadPageContent();
-    
-    // Add event listeners for content updates
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_review' || event.key === 'editor_review') {
-        console.log('Review page editor - Storage change detected for key:', event.key);
-        loadPageContent();
-      }
-    };
-    
-    const handleContentUpdated = () => {
-      console.log('Review page editor - Content updated event received');
-      loadPageContent();
-    };
-    
-    // Listen for direct localStorage changes
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for our custom content updated event
-    window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
-    };
-  }, [loadPageContent]);
+    loadContent();
+  }, []);
 
-  // Also refresh when language changes
+  // When the language changes, we should refresh the content too
   useEffect(() => {
     if (isClient) {
-      console.log('Review page editor - Language changed, refreshing content');
+      console.log('EditReviewPage: Language changed, refreshing content');
+      // This forces a re-render with the new language
       setForceRefresh(prev => prev + 1);
     }
   }, [language, isClient]);
 
+  // Load page content
+  const loadContent = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      console.log('EditReviewPage: Loading review page content');
+      
+      // Get the complete review page content
+      const content = await getExactPageContent('review');
+      
+      if (content) {
+        // Make sure we have all required sections for the review page
+        const requiredSectionIds = [
+          'intro', 'methodology', 'reports', 'testimonials', 'impact', 'timeline',
+          'statistics', 'recommendations', 'process', 'experts', 'publications'
+        ];
+        
+        // Check if any required sections are missing
+        const existingSectionIds = content.sections.map(section => section.id);
+        
+        console.log('EditReviewPage: Available sections:', existingSectionIds.join(', '));
+        console.log('EditReviewPage: Required sections:', requiredSectionIds.join(', '));
+        
+        const missingSectionIds = requiredSectionIds.filter(id => !existingSectionIds.includes(id));
+        
+        if (missingSectionIds.length > 0) {
+          console.log('EditReviewPage: Missing sections:', missingSectionIds.join(', '));
+          // Add missing sections on the fly
+          for (const id of missingSectionIds) {
+            content.sections.push({
+              id: id,
+              title: {
+                fr: id.charAt(0).toUpperCase() + id.slice(1).replace(/_/g, ' '),
+                ar: id
+              },
+              content: {
+                fr: `Contenu de la section ${id}`,
+                ar: `محتوى القسم ${id}`
+              }
+            });
+          }
+        }
+        
+        console.log(`EditReviewPage: Content loaded with ${content.sections.length} sections`);
+        setPageData(content);
+      } else {
+        console.error('EditReviewPage: No content found for review page');
+      }
+    } catch (error) {
+      console.error('EditReviewPage: Error loading content:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const handleSave = async (content: PageContent): Promise<boolean> => {
     try {
+      console.log('EditReviewPage: Saving review page content with sections:', 
+        content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
+      
       // Save the content to localStorage
-      const success = setPageContent(content);
+      const success = await setPageContent(content);
       
       if (success) {
         // Force immediate update of the component state
         setPageData(content);
         
-        // Prepare content string for events
+        // Convert content to string once for efficiency
         const contentString = JSON.stringify(content);
         
+        console.log('EditReviewPage: Content saved successfully, dispatching update events');
+        
         // Dispatch a custom event to notify all components that content has been updated
-        window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+        try {
+          window.dispatchEvent(new Event(CONTENT_UPDATED_EVENT));
+          console.log(`EditReviewPage: Dispatched ${CONTENT_UPDATED_EVENT} event`);
+        } catch (error) {
+          console.error(`Error dispatching ${CONTENT_UPDATED_EVENT} event:`, error);
+        }
         
         // Force re-rendering of other components by triggering localStorage events
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `page_review`,
-          newValue: contentString
-        }));
+        try {
+          // First dispatch for the main page content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `page_${content.id}`,
+            newValue: contentString
+          }));
+          
+          // Then dispatch for the editor content
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: `editor_${content.id}`,
+            newValue: contentString
+          }));
+          
+          console.log(`EditReviewPage: Dispatched storage events for page_${content.id} and editor_${content.id}`);
+        } catch (error) {
+          console.error('Error dispatching storage events:', error);
+        }
         
-        window.dispatchEvent(new StorageEvent('storage', {
-          key: `editor_review`,
-          newValue: contentString
-        }));
-        
-        // Force a re-render on this component too
-        setForceRefresh(prev => prev + 1);
-        
+        // Delay redirect to give time for updates to propagate
         setTimeout(() => {
           router.push('/admin/pages');
         }, 1500);
@@ -187,7 +141,7 @@ export default function EditReviewPage() {
       
       return success;
     } catch (error) {
-      console.error('Error saving review content:', error);
+      console.error('EditReviewPage: Error saving content:', error);
       return false;
     }
   };
@@ -211,7 +165,7 @@ export default function EditReviewPage() {
               <FaArrowLeft className="text-gray-600" />
             </Link>
             <h1 className="text-2xl font-bold text-gray-800">
-              {language === 'fr' ? 'Éditer la page Revue & Publications' : 'تحرير صفحة المراجعة والمنشورات'}
+              {language === 'fr' ? 'Éditer la page Études' : 'تحرير صفحة الدراسات'}
             </h1>
           </div>
         </div>
@@ -219,8 +173,8 @@ export default function EditReviewPage() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <p className="text-gray-600 mb-6">
             {language === 'fr' 
-              ? 'Modifiez le contenu de la page Revue & Publications ci-dessous. Les modifications seront visibles sur le site après l\'enregistrement.'
-              : 'قم بتعديل محتوى صفحة المراجعة والمنشورات أدناه. ستظهر التغييرات على الموقع بعد الحفظ.'}
+              ? 'Modifiez le contenu de la page Études ci-dessous. Les modifications seront visibles sur le site après l\'enregistrement.'
+              : 'قم بتعديل محتوى صفحة الدراسات أدناه. ستظهر التغييرات على الموقع بعد الحفظ.'}
           </p>
           
           <PageContentEditor

@@ -29,10 +29,12 @@ export default function ContactPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
+  const [isClient, setIsClient] = useState(false);
 
-  const loadContent = () => {
+  const loadContent = async () => {
     try {
-      const content = getPageContent('contact');
+      const content = await getPageContent('contact');
+      
       if (content) {
         console.log('Contact page - Content loaded with sections:', 
           content.sections.map(s => `${s.id}: ${s.title?.fr}`).join(', '));
@@ -46,26 +48,28 @@ export default function ContactPage() {
   };
 
   useEffect(() => {
-    // Initial load
+    setIsClient(true);
+    
+    // Initial content load
     loadContent();
-
+    
+    // Add event listeners for content updates
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'page_contact' || event.key === 'editor_contact') {
-        console.log('Contact page - Storage change detected for key:', event.key);
-        // Force complete refresh from localStorage
+      if (event.key === 'page_contact') {
+        console.log('Contact page - Storage change detected');
         loadContent();
       }
     };
     
-    // Listen for our custom content updated event
     const handleContentUpdated = () => {
       console.log('Contact page - Content updated event received');
-      // Force complete refresh 
       loadContent();
     };
-
-    // Add event listeners
+    
+    // Listen for direct localStorage changes
     window.addEventListener('storage', handleStorageChange);
+    
+    // Listen for our custom content updated event
     window.addEventListener(CONTENT_UPDATED_EVENT, handleContentUpdated);
     
     return () => {

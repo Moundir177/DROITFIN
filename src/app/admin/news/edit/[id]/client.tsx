@@ -23,30 +23,37 @@ export default function EditNewsClient() {
   useEffect(() => {
     setIsClient(true);
     
-    // Handle the id param correctly
-    let newsId: number;
-    if (typeof id === 'undefined') {
-      router.push('/admin/news');
-      return;
-    } else if (Array.isArray(id)) {
-      newsId = parseInt(id[0]);
-    } else {
-      newsId = parseInt(id as string);
-    }
-    
-    if (isNaN(newsId)) {
+    if (!id) {
       router.push('/admin/news');
       return;
     }
     
-    const item = getNewsItem(newsId);
-    if (!item) {
-      router.push('/admin/news');
-      return;
-    }
+    const loadNewsItem = async () => {
+      try {
+        const idStr = Array.isArray(id) ? id[0] : id;
+        const newsId = parseInt(idStr);
+        
+        if (isNaN(newsId)) {
+          router.push('/admin/news');
+          return;
+        }
+        
+        const item = await getNewsItem(newsId);
+        if (!item) {
+          router.push('/admin/news');
+          return;
+        }
+        
+        setNewsItem(item);
+      } catch (error) {
+        console.error('Error loading news item:', error);
+        router.push('/admin/news');
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    setNewsItem(item);
-    setIsLoading(false);
+    loadNewsItem();
   }, [id, router]);
 
   const handleChange = (
@@ -117,19 +124,23 @@ export default function EditNewsClient() {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm() || !newsItem) return;
     
     setIsSaving(true);
     
-    // In a real application, this would be an API call
-    setTimeout(() => {
-      updateNewsItem(newsItem);
-      setIsSaving(false);
+    try {
+      // Update the news item
+      await updateNewsItem(newsItem);
       router.push('/admin/news');
-    }, 500);
+    } catch (error) {
+      console.error('Error updating news item:', error);
+      // Show error message to user
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Only render on client side to avoid hydration issues
