@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Large files
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+.wrangler/state/v3/kv/**/*.sqlite*
+*.zip
+*.tar.gz
+*.7z
+*.rar
+*.db
+*.bin
