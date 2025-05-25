@@ -2,6 +2,7 @@
 
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import React from 'react';
@@ -12,12 +13,14 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   return (
-    <LanguageProvider>
-      <AuthProvider>
-        <Navbar />
-        <main className="flex-grow">{children}</main>
-        <Footer />
-      </AuthProvider>
-    </LanguageProvider>
+    <ErrorBoundary>
+      <LanguageProvider>
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+        </AuthProvider>
+      </LanguageProvider>
+    </ErrorBoundary>
   );
 } 
