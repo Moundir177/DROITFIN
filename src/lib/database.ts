@@ -388,77 +388,214 @@ const defaultMediaLibrary: MediaItem[] = [
   }
 ];
 
-// Generic get, set, and delete functions that work in both environments
-export const getItem = async <T>(key: string): Promise<T | null> => {
-  // If in production, use the API
-  if (isProduction()) {
-    return await getData<T>(key);
+// Default global content
+const defaultGlobalContent: GlobalContent[] = [
+  {
+    id: 'button_1',
+    category: 'buttons',
+    key: 'read_more',
+    text: {
+      fr: 'Lire la suite',
+      ar: 'إقرأ المزيد'
+    }
+  },
+  {
+    id: 'button_2',
+    category: 'buttons',
+    key: 'submit',
+    text: {
+      fr: 'Envoyer',
+      ar: 'إرسال'
+    }
+  },
+  {
+    id: 'label_1',
+    category: 'labels',
+    key: 'name',
+    text: {
+      fr: 'Nom',
+      ar: 'الاسم'
+    }
+  },
+  {
+    id: 'label_2',
+    category: 'labels',
+    key: 'email',
+    text: {
+      fr: 'Email',
+      ar: 'البريد الإلكتروني'
+    }
   }
-  
-  // In development, use localStorage
-  if (typeof window === 'undefined') return null;
-  
+];
+
+// Generic function to get data from localStorage or API
+export const getItem = async <T>(key: string): Promise<T | null> => {
   try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : null;
-  } catch (e) {
-    console.error(`Error getting item '${key}' from localStorage:`, e);
+    console.log(`DROITFIN DEBUG - Getting item: ${key}`);
+    
+    // In production, use the API
+    if (isProduction()) {
+      console.log(`DROITFIN DEBUG - Production mode, getting from API: ${key}`);
+      const data = await getData<T>(key);
+      console.log(`DROITFIN DEBUG - API response for ${key}:`, data);
+      return data;
+    }
+    
+    // In development, use localStorage
+    console.log(`DROITFIN DEBUG - Development mode, getting from localStorage: ${key}`);
+    
+    if (typeof window === 'undefined') {
+      console.log('DROITFIN DEBUG - Window is undefined (SSR), returning null');
+      return null;
+    }
+    
+    // Try to get from localStorage
+    const value = localStorage.getItem(key);
+    if (!value) {
+      console.log(`DROITFIN DEBUG - No value found in localStorage for ${key}`);
+      
+      // Try to create default content for this key
+      if (key.startsWith('page_')) {
+        const pageId = key.replace('page_', '');
+        console.log(`DROITFIN DEBUG - Creating default content for page: ${pageId}`);
+        const defaultContent = createDefaultPageContent(pageId);
+        
+        if (defaultContent) {
+          console.log(`DROITFIN DEBUG - Created default content for ${key}`, defaultContent);
+          
+          // Save to localStorage for next time
+          localStorage.setItem(key, JSON.stringify(defaultContent));
+          return defaultContent as unknown as T;
+        }
+      } else if (key === 'newsItems') {
+        // Save default news items
+        console.log('DROITFIN DEBUG - Returning default news items');
+        localStorage.setItem('newsItems', JSON.stringify(defaultNewsItems));
+        return defaultNewsItems as unknown as T;
+      } else if (key === 'resources') {
+        // Save default resources
+        console.log('DROITFIN DEBUG - Returning default resources');
+        localStorage.setItem('resources', JSON.stringify(defaultResources));
+        return defaultResources as unknown as T;
+      } else if (key === 'structure') {
+        // Save default structure
+        console.log('DROITFIN DEBUG - Returning default structure');
+        localStorage.setItem('structure', JSON.stringify(defaultStructure));
+        return defaultStructure as unknown as T;
+      } else if (key === 'media_library') {
+        // Save default media library
+        console.log('DROITFIN DEBUG - Returning default media library');
+        localStorage.setItem('media_library', JSON.stringify(defaultMediaLibrary));
+        return defaultMediaLibrary as unknown as T;
+      } else if (key === 'global_content') {
+        // Save default global content
+        console.log('DROITFIN DEBUG - Returning default global content');
+        localStorage.setItem('global_content', JSON.stringify(defaultGlobalContent));
+        return defaultGlobalContent as unknown as T;
+      }
+      
+      return null;
+    }
+    
+    try {
+      const parsedValue = JSON.parse(value) as T;
+      console.log(`DROITFIN DEBUG - Got value from localStorage for ${key}:`, parsedValue);
+      return parsedValue;
+    } catch (parseError) {
+      console.error(`DROITFIN DEBUG - Error parsing JSON for ${key}:`, parseError);
+      return null;
+    }
+  } catch (error) {
+    console.error(`DROITFIN DEBUG - Error getting item ${key}:`, error);
     return null;
   }
 };
 
 export const setItem = async <T>(key: string, value: T): Promise<boolean> => {
-  // If in production, use the API
+  try {
+    console.log(`DROITFIN DEBUG - setItem called for key: ${key}`);
+    
+    // Check if we're in production
   if (isProduction()) {
-    return await setData<T>(key, value);
+      console.log(`DROITFIN DEBUG - Using API for setItem: ${key}`);
+      return await setData(key, value);
   }
   
   // In development, use localStorage
-  if (typeof window === 'undefined') return false;
+    console.log(`DROITFIN DEBUG - Using localStorage for setItem: ${key}`);
+    const valueStr = JSON.stringify(value);
+    localStorage.setItem(key, valueStr);
   
+    // Dispatch storage event for real-time updates across tabs
   try {
-    const valueString = JSON.stringify(value);
-    localStorage.setItem(key, valueString);
-    
-    // Manually dispatch a storage event to ensure all components are updated
-    // This helps with components in the same window that won't naturally receive storage events
     window.dispatchEvent(new StorageEvent('storage', {
       key: key,
-      newValue: valueString
+        newValue: valueStr
     }));
+    } catch (error) {
+      console.error(`Error dispatching storage event for key ${key}:`, error);
+    }
     
     return true;
-  } catch (e) {
-    console.error(`Error setting item '${key}' in localStorage:`, e);
+  } catch (error) {
+    console.error(`Error in setItem for key ${key}:`, error);
     return false;
   }
 };
 
 export const removeItem = async (key: string): Promise<boolean> => {
-  // If in production, use the API
+  try {
+    console.log(`DROITFIN DEBUG - removeItem called for key: ${key}`);
+    
+    // Check if we're in production
   if (isProduction()) {
+      console.log(`DROITFIN DEBUG - Using API for removeItem: ${key}`);
     return await deleteData(key);
   }
   
   // In development, use localStorage
-  if (typeof window === 'undefined') return false;
-  
-  try {
+    console.log(`DROITFIN DEBUG - Using localStorage for removeItem: ${key}`);
     localStorage.removeItem(key);
     return true;
   } catch (e) {
-    console.error('Error removing item from localStorage:', e);
+    console.error('Error removing item from storage:', e);
     return false;
   }
 };
 
 // Data specific functions - modify these to work with promises
 export const getNews = async (): Promise<NewsItem[]> => {
-  return await getItem<NewsItem[]>('news') || [];
+  const news = await getItem<NewsItem[]>('newsItems');
+  if (news) {
+    return news;
+  }
+  
+  console.log('DROITFIN DEBUG - No news items found, returning default news items');
+  
+  // If we're in development mode, save the default news items to localStorage
+  if (!isProduction() && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('newsItems', JSON.stringify(defaultNewsItems));
+      
+      // Dispatch storage event for real-time updates across tabs
+      try {
+        window.dispatchEvent(new StorageEvent('storage', {
+          key: 'newsItems',
+          newValue: JSON.stringify(defaultNewsItems)
+        }));
+      } catch (error) {
+        console.error('Error dispatching storage event for newsItems:', error);
+      }
+    } catch (error) {
+      console.error('Error saving default news items to localStorage:', error);
+    }
+  }
+  
+  return defaultNewsItems;
 };
 
 export const setNews = async (news: NewsItem[]): Promise<boolean> => {
-  return await setItem('news', news);
+  return await setItem('newsItems', news);
 };
 
 export const getNewsItem = async (id: number): Promise<NewsItem | null> => {
@@ -513,8 +650,50 @@ export const deleteResource = async (id: number): Promise<boolean> => {
   return await setResources(filtered);
 };
 
-export const getPageContent = async (pageId: string): Promise<PageContent | null> => {
-  return await getItem<PageContent>(`page_${pageId}`) || null;
+export const getPageContent = async (pageId: string, isEditor: boolean = false): Promise<PageContent | null> => {
+  try {
+    // Define the key based on whether we're getting the editor version or the live version
+    const key = isEditor ? `editor_${pageId}` : `page_${pageId}`;
+    
+    console.log(`Database: Getting ${isEditor ? 'editor' : 'live'} content for page ${pageId}`);
+    
+    let content: PageContent | null = null;
+    
+    // Check if we're in production mode to determine how to get the data
+    if (isProduction()) {
+      console.log(`Database: In production mode - fetching content for ${pageId} via API`);
+      content = await getData<PageContent>(key);
+    } else {
+      // In development mode, use localStorage
+      console.log(`Database: In development mode - getting content for ${pageId} from localStorage`);
+      const contentString = localStorage.getItem(key);
+      
+      if (contentString) {
+        try {
+          content = JSON.parse(contentString);
+        } catch (error) {
+          console.error(`Error parsing content for ${pageId}:`, error);
+          content = null;
+        }
+      }
+    }
+    
+    // If no content found, get default content
+    if (!content) {
+      console.log(`Database: No content found for ${pageId}, using default content`);
+      content = getDefaultContent(pageId);
+      
+      // Save the default content for future use
+      if (content) {
+        await setPageContent(content);
+      }
+    }
+    
+    return content;
+  } catch (error) {
+    console.error(`Error getting content for page ${pageId}:`, error);
+    return getDefaultContent(pageId);
+  }
 };
 
 // Custom event name for content updates
@@ -576,9 +755,26 @@ export const setPageContent = async (content: PageContent): Promise<boolean> => 
       return section;
     });
     
-    // Save to both editor and live versions to ensure persistence
-    const editorKey = `editor_${content.id}`;
+    // Define the keys we need to save to
     const pageKey = `page_${content.id}`;
+    const editorKey = `editor_${content.id}`;
+
+    // Check if we're in production mode to determine how to save the data
+    if (isProduction()) {
+      console.log(`Database: In production mode - saving content for ${content.id} via API`);
+      
+      // Save the content to both the page and editor versions via API
+      const pageSuccess = await setData(pageKey, content);
+      const editorSuccess = await setData(editorKey, content);
+      
+      if (!pageSuccess || !editorSuccess) {
+        console.error(`Database: Failed to save content via API for ${content.id}`);
+        return false;
+      }
+    } else {
+      // In development mode, use localStorage
+      console.log(`Database: In development mode - saving content for ${content.id} to localStorage`);
+      
     const contentString = JSON.stringify(content);
     
     // Remove previous items first to avoid any potential conflicts
@@ -586,10 +782,12 @@ export const setPageContent = async (content: PageContent): Promise<boolean> => 
     localStorage.removeItem(pageKey);
     
     // Small delay to ensure removal completed
-    setTimeout(() => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       // Set new content
       localStorage.setItem(editorKey, contentString);
       localStorage.setItem(pageKey, contentString);
+    }
       
       console.log(`Database: Updated content for page ${content.id} with ${content.sections.length} sections`);
       
@@ -606,30 +804,25 @@ export const setPageContent = async (content: PageContent): Promise<boolean> => 
         
         // Then dispatch storage events for both keys to ensure all components update
         try {
+        const contentString = JSON.stringify(content);
+        
           // Dispatch event for page content
-          const pageEvent = new StorageEvent('storage', {
+        window.dispatchEvent(new StorageEvent('storage', {
             key: pageKey,
-            newValue: contentString,
-            oldValue: null,
-            storageArea: localStorage
-          });
-          window.dispatchEvent(pageEvent);
+          newValue: contentString
+        }));
           
           // Dispatch event for editor content
-          const editorEvent = new StorageEvent('storage', {
+        window.dispatchEvent(new StorageEvent('storage', {
             key: editorKey,
-            newValue: contentString,
-            oldValue: null,
-            storageArea: localStorage
-          });
-          window.dispatchEvent(editorEvent);
+          newValue: contentString
+        }));
           
           console.log(`Database: Dispatched storage events for ${pageKey} and ${editorKey}`);
         } catch (error) {
           console.error('Error dispatching storage events:', error);
         }
       }
-    }, 50);
     
     return true;
   } catch (error) {
@@ -1171,15 +1364,15 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
             ar: 'البانر الرئيسي'
           },
           content: {
-            fr: 'Fondation pour la Promotion des Droits',
-            ar: 'مؤسسة تعزيز الحقوق'
+            fr: 'Bienvenue sur notre site',
+            ar: 'مرحبا بكم في موقعنا'
           }
         },
         {
           id: 'slogan',
           title: {
-            fr: 'Notre slogan',
-            ar: 'شعارنا'
+            fr: 'Slogan',
+            ar: 'شعار'
           },
           content: {
             fr: 'Ensemble, pour des droits connus, reconnus et défendus.',
@@ -1193,107 +1386,8 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
             ar: 'مهمتنا'
           },
           content: {
-            fr: 'Notre mission est de promouvoir et défendre les droits par la sensibilisation, la formation, la documentation des violations et le soutien aux acteurs de la société civile.',
-            ar: 'مهمتنا هي تعزيز والدفاع عن الحقوق من خلال التوعية والتدريب وتوثيق الانتهاكات ودعم الفاعلين في المجتمع المدني.'
-          }
-        },
-        {
-          id: 'droits_egaux',
-          title: {
-            fr: 'Des droits égaux pour tous',
-            ar: 'حقوق متساوية للجميع'
-          },
-          content: {
-            fr: 'Nous œuvrons pour une société où les droits de chaque individu sont respectés sans discrimination.',
-            ar: 'نعمل من أجل مجتمع تُحترم فيه حقوق كل فرد دون تمييز.'
-          }
-        },
-        {
-          id: 'objectives',
-          title: {
-            fr: 'Nos objectifs',
-            ar: 'أهدافنا'
-          },
-          content: {
-            fr: 'Contribuer et œuvrer à la construction d\'un État de droit en exhortant les citoyens à s\'engager à faire appliquer et respecter la loi et à promouvoir les droits.',
-            ar: 'المساهمة والعمل على بناء دولة القانون من خلال حث المواطنين على الالتزام بتطبيق واحترام القانون وتعزيز الحقوق.'
-          }
-        },
-        {
-          id: 'impact',
-          title: {
-            fr: 'Notre Impact',
-            ar: 'تأثيرنا'
-          },
-          content: {
-            fr: '38+ Formations\n760+ Bénéficiaires\n25+ Partenaires',
-            ar: '+38 تدريب\n+760 مستفيد\n+25 شريك'
-          }
-        },
-        {
-          id: 'actualites',
-          title: {
-            fr: 'Actualités',
-            ar: 'الأخبار'
-          },
-          content: {
-            fr: 'Restez informé de nos dernières activités et des événements en lien avec les droits humains.',
-            ar: 'ابق على اطلاع بأحدث أنشطتنا والأحداث المرتبطة بحقوق الإنسان.'
-          }
-        },
-        {
-          id: 'objectifs_details',
-          title: {
-            fr: 'Détails des objectifs',
-            ar: 'تفاصيل الأهداف'
-          },
-          content: {
-            fr: '1. Sensibiliser le public aux droits fondamentaux\n2. Former les défenseurs des droits\n3. Documenter les violations des droits\n4. Soutenir les victimes de violations\n5. Contribuer à l\'amélioration du cadre juridique',
-            ar: '1. توعية الجمهور بالحقوق الأساسية\n2. تدريب المدافعين عن الحقوق\n3. توثيق انتهاكات الحقوق\n4. دعم ضحايا الانتهاكات\n5. المساهمة في تحسين الإطار القانوني'
-          }
-        },
-        {
-          id: 'mission_details',
-          title: {
-            fr: 'Détails de notre mission',
-            ar: 'تفاصيل مهمتنا'
-          },
-          content: {
-            fr: 'Notre mission principale est de contribuer à la construction d\'un État de droit solide et inclusif. Pour cela, nous mettons en place des actions de plaidoyer, des campagnes de sensibilisation, des formations juridiques et des programmes d\'éducation civique.',
-            ar: 'مهمتنا الرئيسية هي المساهمة في بناء دولة قانون قوية وشاملة. لتحقيق ذلك، نقوم بتنفيذ أنشطة المناصرة وحملات التوعية والتدريب القانوني وبرامج التربية المدنية.'
-          }
-        },
-        {
-          id: 'programmes',
-          title: {
-            fr: 'Nos programmes',
-            ar: 'برامجنا'
-          },
-          content: {
-            fr: 'Découvrez nos programmes phares dans les domaines de la formation, du plaidoyer et de la documentation.',
-            ar: 'اكتشف برامجنا الرئيسية في مجالات التدريب والمناصرة والتوثيق.'
-          }
-        },
-        {
-          id: 'identite_visuelle',
-          title: {
-            fr: 'Notre identité visuelle',
-            ar: 'هويتنا البصرية'
-          },
-          content: {
-            fr: 'Notre logo et nos couleurs représentent nos valeurs fondamentales de justice, d\'équité et de respect de la dignité humaine.',
-            ar: 'يمثل شعارنا وألواننا قيمنا الأساسية المتمثلة في العدالة والإنصاف واحترام كرامة الإنسان.'
-          }
-        },
-        {
-          id: 'newsletter',
-          title: {
-            fr: 'Newsletter',
-            ar: 'النشرة الإخبارية'
-          },
-          content: {
-            fr: 'Inscrivez-vous à notre newsletter pour recevoir nos actualités et rester informé de nos actions.',
-            ar: 'اشترك في نشرتنا الإخبارية لتلقي أخبارنا والبقاء على اطلاع بأنشطتنا.'
+            fr: 'Nous œuvrons pour promouvoir les droits humains et la justice sociale à travers l\'information, la sensibilisation et l\'assistance juridique.',
+            ar: 'نحن نعمل على تعزيز حقوق الإنسان والعدالة الاجتماعية من خلال المعلومات والتوعية والمساعدة القانونية.'
           }
         }
       ]
@@ -1304,86 +1398,8 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
   if (pageId === 'about') {
     return {
       id: 'about',
-      title: { fr: 'À Propos', ar: 'من نحن' },
+      title: { fr: 'À propos', ar: 'حول' },
       sections: [
-        {
-          id: 'intro',
-          title: {
-            fr: 'Introduction',
-            ar: 'مقدمة'
-          },
-          content: {
-            fr: 'Découvrez notre mission, nos valeurs et notre équipe dédiée à la promotion et à la défense des droits humains.',
-            ar: 'اكتشف مهمتنا وقيمنا وفريقنا المكرس لتعزيز وحماية حقوق الإنسان.'
-          }
-        },
-        {
-          id: 'mission',
-          title: {
-            fr: 'Notre mission',
-            ar: 'مهمتنا'
-          },
-          content: {
-            fr: 'Notre mission principale est de contribuer à la construction d\'un État de droit solide et inclusif. Pour cela, nous mettons en place des actions de plaidoyer, des campagnes de sensibilisation, des formations juridiques et des programmes d\'éducation civique.',
-            ar: 'مهمتنا هي تعزيز والدفاع عن الحقوق من خلال التوعية والتدريب وتوثيق الانتهاكات ودعم الفاعلين في المجتمع المدني.'
-          }
-        },
-        {
-          id: 'vision',
-          title: {
-            fr: 'Notre vision',
-            ar: 'رؤيتنا'
-          },
-          content: {
-            fr: '"Contribuer à l\'édification d\'une société où la dignité humaine est respectée et où les droits sont garantis pour tous, sans discrimination."',
-            ar: '"المساهمة في بناء مجتمع تُحترم فيه كرامة الإنسان وتُضمن فيه الحقوق للجميع، دون تمييز."'
-          }
-        },
-        {
-          id: 'justice',
-          title: {
-            fr: 'Justice et Droits',
-            ar: 'العدالة والحقوق'
-          },
-          content: {
-            fr: 'Face aux défis, nous restons engagés et mobilisés pour faire avancer la justice et promouvoir le respect des droits fondamentaux.',
-            ar: 'في مواجهة التحديات، نبقى ملتزمين ومجندين لدفع العدالة وتعزيز احترام الحقوق الأساسية.'
-          },
-          image: '/images/law/justice-law-scales.jpg'
-        },
-        {
-          id: 'objectives',
-          title: {
-            fr: 'Nos objectifs',
-            ar: 'أهدافنا'
-          },
-          content: {
-            fr: 'Contribuer et œuvrer à la construction d\'un État de droit en exhortant les citoyens à s\'engager à faire appliquer et respecter la loi et à promouvoir les droits.',
-            ar: 'المساهمة والعمل على بناء دولة القانون من خلال حث المواطنين على الالتزام بتطبيق واحترام القانون وتعزيز الحقوق.'
-          }
-        },
-        {
-          id: 'objectives_intro',
-          title: {
-            fr: 'Introduction aux objectifs',
-            ar: 'مقدمة الأهداف'
-          },
-          content: {
-            fr: 'La Fondation pour la promotion des droits poursuit les objectifs suivants pour concrétiser sa vision d\'une société juste et respectueuse des droits fondamentaux.',
-            ar: 'تسعى المؤسسة من اجل ترقية الحقوق لتحقيق الأهداف التالية لتجسيد رؤيتها لمجتمع عادل يحترم الحقوق الأساسية.'
-          }
-        },
-        {
-          id: 'target_audience',
-          title: {
-            fr: 'Notre public cible',
-            ar: 'جمهورنا المستهدف'
-          },
-          content: {
-            fr: 'Nos actions et programmes sont conçus pour répondre aux besoins spécifiques de différentes catégories de personnes concernées par les droits humains.',
-            ar: 'تم تصميم إجراءاتنا وبرامجنا لتلبية الاحتياجات المحددة لمختلف فئات الأشخاص المعنيين بحقوق الإنسان.'
-          }
-        },
         {
           id: 'history',
           title: {
@@ -1391,21 +1407,9 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
             ar: 'تاريخنا'
           },
           content: {
-            fr: 'Notre histoire est avant tout celle d\'un engagement collectif. Face aux défis persistants liés au respect des droits fondamentaux, nous avons choisi d\'unir nos expertises et nos convictions pour créer une structure indépendante, transparente et active.',
-            ar: 'تاريخنا هو قبل كل شيء تاريخ التزام جماعي. في مواجهة التحديات المستمرة المرتبطة باحترام الحقوق الأساسية، اخترنا توحيد خبراتنا وقناعاتنا لإنشاء هيكل مستقل وشفاف ونشط.'
+            fr: 'Fondée en 2020, notre fondation travaille sans relâche pour défendre les droits humains.',
+            ar: 'تأسست في عام 2020، تعمل مؤسستنا بلا كلل للدفاع عن حقوق الإنسان.'
           }
-        },
-        {
-          id: 'founder',
-          title: {
-            fr: 'Mot du Gérant',
-            ar: 'كلمة المدير'
-          },
-          content: {
-            fr: 'C\'est avec une grande fierté et une profonde conviction que je vous adresse ces quelques mots en tant que gérant de la Fondation pour la promotion des droits.',
-            ar: 'بكل فخر وقناعة عميقة أخاطبكم بهذه الكلمات القليلة كمدير للمؤسسة من اجل ترقية الحقوق.'
-          },
-          image: '/images/zakaria.jpg'
         }
       ]
     };
@@ -1625,7 +1629,7 @@ const createDefaultPageContent = (pageId: string): PageContent | null => {
             ar: 'الشهادات'
           },
           content: {
-            fr: 'Découvrez ce que nos bénéficiaires, partenaires et volontaires disent de notre travail',
+            fr: 'Découvrez ce que disent nos partenaires et bénéficiaires sur notre travail',
             ar: 'اكتشف ما يقوله المستفيدون وشركاؤنا ومتطوعونا عن عملنا'
           }
         },
@@ -2221,8 +2225,8 @@ export const updateAllPagesWithAllSections = async (): Promise<boolean> => {
         id: 'contact_info',
         title: { fr: 'Informations de Contact', ar: 'معلومات الاتصال' },
         content: { 
-          fr: 'Email: contact@droitfpra.org\nTéléphone: +213 00 00 00 00\nAdresse: Alger, Algérie', 
-          ar: 'البريد الإلكتروني: contact@droitfpra.org\nالهاتف: +213 00 00 00 00\nالعنوان: الجزائر العاصمة، الجزائر' 
+          fr: 'Email: contact@droitfin.com\nTéléphone: +123 456 789', 
+          ar: 'البريد الإلكتروني: contact@droitfin.com\nالهاتف: +123 456 789' 
         }
       }
     ];
@@ -2339,3 +2343,131 @@ if (typeof window !== 'undefined') {
     updateAllPagesWithAllSections();
   }
 } 
+
+// Function to get default content for a page
+const getDefaultContent = (pageId: string): PageContent | null => {
+  // Check which page we're looking for and return the appropriate default content
+  if (pageId === 'home') {
+    return DEFAULT_HOME_PAGE;
+  } else if (pageId === 'about') {
+    return DEFAULT_ABOUT_PAGE;
+  } else if (pageId === 'contact') {
+    return DEFAULT_CONTACT_PAGE;
+  } else if (pageId === 'services') {
+    return DEFAULT_SERVICES_PAGE;
+  }
+  
+  // If we don't have default content for this page, return null
+  console.warn(`No default content available for page ${pageId}`);
+  return null;
+}; 
+
+// Default content for the home page
+export const DEFAULT_HOME_PAGE: PageContent = {
+  id: 'home',
+  title: {
+    fr: 'Accueil',
+    ar: 'الصفحة الرئيسية'
+  },
+  sections: [
+    {
+      id: 'hero',
+      title: {
+        fr: 'Bannière principale',
+        ar: 'البانر الرئيسي'
+      },
+      content: {
+        fr: 'Bienvenue sur notre site',
+        ar: 'مرحبا بكم في موقعنا'
+      }
+    },
+    {
+      id: 'slogan',
+      title: {
+        fr: 'Slogan',
+        ar: 'شعار'
+      },
+      content: {
+        fr: 'Ensemble, pour des droits connus, reconnus et défendus.',
+        ar: 'معاً، من أجل حقوق معروفة ومعترف بها ومحمية.'
+      }
+    },
+    {
+      id: 'mission',
+      title: {
+        fr: 'Notre mission',
+        ar: 'مهمتنا'
+      },
+      content: {
+        fr: 'Nous œuvrons pour promouvoir les droits humains et la justice sociale à travers l\'information, la sensibilisation et l\'assistance juridique.',
+        ar: 'نحن نعمل على تعزيز حقوق الإنسان والعدالة الاجتماعية من خلال المعلومات والتوعية والمساعدة القانونية.'
+      }
+    }
+  ]
+};
+
+// Default content for the about page
+export const DEFAULT_ABOUT_PAGE: PageContent = {
+  id: 'about',
+  title: {
+    fr: 'À propos',
+    ar: 'حول'
+  },
+  sections: [
+    {
+      id: 'history',
+      title: {
+        fr: 'Notre histoire',
+        ar: 'تاريخنا'
+      },
+      content: {
+        fr: 'Fondée en 2020, notre fondation travaille sans relâche pour défendre les droits humains.',
+        ar: 'تأسست في عام 2020، تعمل مؤسستنا بلا كلل للدفاع عن حقوق الإنسان.'
+      }
+    }
+  ]
+};
+
+// Default content for the contact page
+export const DEFAULT_CONTACT_PAGE: PageContent = {
+  id: 'contact',
+  title: {
+    fr: 'Contact',
+    ar: 'اتصل بنا'
+  },
+  sections: [
+    {
+      id: 'contact_info',
+      title: {
+        fr: 'Informations de contact',
+        ar: 'معلومات الاتصال'
+      },
+      content: {
+        fr: 'Email: contact@droitfin.com\nTéléphone: +123 456 789',
+        ar: 'البريد الإلكتروني: contact@droitfin.com\nالهاتف: +123 456 789'
+      }
+    }
+  ]
+};
+
+// Default content for the services page
+export const DEFAULT_SERVICES_PAGE: PageContent = {
+  id: 'services',
+  title: {
+    fr: 'Services',
+    ar: 'خدمات'
+  },
+  sections: [
+    {
+      id: 'legal_assistance',
+      title: {
+        fr: 'Assistance juridique',
+        ar: 'المساعدة القانونية'
+      },
+      content: {
+        fr: 'Nous offrons une assistance juridique aux personnes dans le besoin.',
+        ar: 'نقدم المساعدة القانونية للأشخاص المحتاجين.'
+      }
+    }
+  ]
+}; 
